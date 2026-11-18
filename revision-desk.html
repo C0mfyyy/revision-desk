@@ -227,6 +227,30 @@ pre.code{background:var(--sunk);border-radius:10px;padding:12px;overflow-x:auto;
 .modal .card{width:100%;max-width:520px;max-height:100%;overflow:auto}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 16px;font-weight:700;z-index:60;box-shadow:var(--shadow)}
 
+/* materials import + study guide */
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;border:2px dashed var(--line);border-radius:14px;padding:30px 16px;background:var(--bg);cursor:pointer;color:var(--muted)}
+.drop:hover,.drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.drop b{font-family:var(--display);font-size:1.12rem;color:var(--ink)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.files{display:flex;flex-direction:column}
+.file{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.file:first-child{border-top:0}
+.ftype{width:44px;height:44px;border-radius:10px;background:var(--sunk);display:grid;place-items:center;font-weight:800;font-size:.68rem;font-family:var(--display);letter-spacing:.04em;text-transform:uppercase}
+.file .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.state{font-size:.86rem;color:var(--muted)} .state.ok{color:var(--good)} .state.err{color:var(--bad)} .state.run{color:var(--accent)}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.guide h3{font-size:1.06rem;margin:20px 0 8px}
+.guide ul.gl{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px}
+.guide .gl p{display:inline} .guide .gl ul{margin:4px 0 0}
+.tablewrap{overflow-x:auto}
+table.traps{border-collapse:collapse;width:100%;min-width:540px;font-size:.94rem}
+table.traps th{text-align:left;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:2px solid var(--line)}
+table.traps td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+details.sa{border-top:1px solid var(--line);padding:12px 0} details.sa:first-of-type{border-top:0}
+details.sa summary{cursor:pointer;font-weight:700}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
 @media (max-width:900px){
   .shell{grid-template-columns:1fr}
   .rail{display:none;position:fixed;inset:0 auto 0 0;width:min(300px,86vw);z-index:40;height:100%;box-shadow:0 0 40px rgba(0,0,0,.25);padding-top:calc(18px + env(safe-area-inset-top,0px))}
@@ -830,12 +854,12 @@ async function initStore(){
 }
 
 /* ============ Data model ============ */
-function mergeTest(base, d){
+function mergeTest(base, d, chunks){
   d = d||{}; const rm = new Set(d.removed||[]);
-  const pick = k => [ ...((base&&base[k])||[]).filter(x=>!rm.has(x.id)), ...(d[k]||[]) ];
+  const pick = k => [ ...((base&&base[k])||[]), ...(d[k]||[]), ...(chunks||[]).flatMap(c=>c[k]||[]) ].filter(x=>!rm.has(x.id));
   return { id:(base&&base.id)||d.id, moduleId:d.moduleId||(base&&base.moduleId), name:d.name||(base&&base.name)||'Untitled test',
     date:d.date!==undefined?d.date:((base&&base.date)||''), format:d.format||(base&&base.format)||{mcq:15,sa:3},
-    topics:d.topics||(base&&base.topics)||[], lessons:pick('lessons'), mcq:pick('mcq'), sa:pick('sa'), cards:pick('cards'),
+    topics:d.topics||(base&&base.topics)||[], lessons:pick('lessons'), mcq:pick('mcq'), sa:pick('sa'), cards:pick('cards'), traps:pick('traps'),
     builtin:!!base, created:d.created||(base&&base.created)||0, deleted:!!d.deleted };
 }
 function getModules(){
@@ -846,8 +870,11 @@ function getModules(){
 }
 function getModule(mid){ return getModules().find(m=>m.id===mid); }
 function getTests(){
-  const out=[]; const bt = mergeTest(BUILTIN_TEST, docs['t_'+BUILTIN_TEST_ID]); if(!bt.deleted) out.push(bt);
-  for(const k in docs){ if(k.startsWith('t_') && k!=='t_'+BUILTIN_TEST_ID){ const v=docs[k]; if(v && !v.deleted) out.push(mergeTest(null, Object.assign({},v,{id:k.slice(2)}))); } }
+  // generated content lives in chunk docs c_<testId>_<n> so no single doc grows past the store's size limit
+  const ch={}; for(const k in docs){ if(k.startsWith('c_') && docs[k]){ const tid=k.slice(2,k.lastIndexOf('_')); (ch[tid]=ch[tid]||[]).push(docs[k]); } }
+  for(const id in ch) ch[id].sort((a,b)=>(a.created||0)-(b.created||0));
+  const out=[]; const bt = mergeTest(BUILTIN_TEST, docs['t_'+BUILTIN_TEST_ID], ch[BUILTIN_TEST_ID]); if(!bt.deleted) out.push(bt);
+  for(const k in docs){ if(k.startsWith('t_') && k!=='t_'+BUILTIN_TEST_ID){ const v=docs[k]; if(v && !v.deleted) out.push(mergeTest(null, Object.assign({},v,{id:k.slice(2)}), ch[k.slice(2)])); } }
   const mods = new Set(getModules().map(m=>m.id));
   return out.filter(t=>mods.has(t.moduleId)).sort((a,b)=>(a.created||0)-(b.created||0));
 }
@@ -874,14 +901,14 @@ function ring(p, sz){ return `<div class="ring" style="--p:${p};--sz:${sz||84}px
 
 /* ============ UI state ============ */
 let ui = { page:'home', mid:null, tid:null, tab:'overview', lid:null, ltab:'learn', recall:false, open:{}, sel:{},
-  fc:null, ck:null, deck:null, sess:null, setup:{topics:null,count:10}, addType:'mcq', gen:null, modal:null, menu:false, toast:'' };
+  fc:null, ck:null, deck:null, sess:null, setup:{topics:null,count:10}, addType:'mcq', modal:null, menu:false, toast:'', builds:{} };
 let sampleFn = null;
 
 function routeKey(){ return [ui.page,ui.mid,ui.tid,ui.tab,ui.lid,ui.ltab,ui.sess?ui.sess.i:'',ui.modal?ui.modal.kind:''].join('|'); }
 function setHash(){ let h = ui.page==='home'?'home': ui.page==='module'?'m-'+ui.mid : 't-'+ui.tid+'--'+ui.tab; try{ if(location.hash.slice(1)!==h) history.replaceState(null,'','#'+h); }catch(e){} }
 function readHash(){ const h=(location.hash||'').slice(1); if(h.startsWith('m-')){ ui.page='module'; ui.mid=h.slice(2); }
   else if(h.startsWith('t-')){ const [tid,tab]=h.slice(2).split('--'); ui.page='test'; ui.tid=tid; ui.tab=tab||'overview'; } }
-function go(page, opts){ Object.assign(ui, {page, sess:null, lid:null, fc:null, ck:null, deck:null, gen:null, menu:false}, opts||{});
+function go(page, opts){ Object.assign(ui, {page, sess:null, lid:null, fc:null, ck:null, deck:null, menu:false}, opts||{});
   if(page==='test'){ const t=getTest(ui.tid); if(t) ui.mid=t.moduleId; }
   render(true); window.scrollTo(0,0); }
 function toast(msg){ ui.toast=msg; renderOverlay(); clearTimeout(toast.t); toast.t=setTimeout(()=>{ui.toast='';renderOverlay();},2200); }
@@ -891,7 +918,7 @@ let lastKey='';
 function render(fresh){
   const key = routeKey(); const keep = !fresh && key===lastKey;
   const saved = {}; let focus=null, selS=null, selE=null;
-  if(keep){ document.querySelectorAll('#main input[id], #main textarea[id], #main select[id]').forEach(el=>{ saved[el.id] = el.type==='radio'||el.type==='checkbox' ? el.checked : el.value; });
+  if(keep){ document.querySelectorAll('#main input[id]:not([type=file]), #main textarea[id], #main select[id]').forEach(el=>{ saved[el.id] = el.type==='radio'||el.type==='checkbox' ? el.checked : el.value; });
     const a=document.activeElement; if(a && a.id && saved[a.id]!==undefined){ focus=a.id; try{ selS=a.selectionStart; selE=a.selectionEnd; }catch(e){} } }
   lastKey = key;
   if(ui.page==='module' && !getModule(ui.mid)) ui.page='home';
@@ -914,7 +941,7 @@ function renderRail(){
     <div class="railhead"><span>Modules</span><button data-act="new-module">+ New</button></div><div class="tree">`;
   mods.forEach((md,i)=>{
     h += `<button class="navlink tmod" style="--mc:${COLORS[(md.color!=null?md.color:i)%COLORS.length]}" data-go="module" data-mid="${esc(md.id)}" aria-current="${ui.page==='module'&&ui.mid===md.id}"><span class="dot"></span><span>${esc(md.name)}</span></button>`;
-    testsOf(md.id).forEach(t=>{ h += `<button class="navlink ttest" data-go="test" data-tid="${esc(t.id)}" aria-current="${ui.page==='test'&&ui.tid===t.id}"><span>${esc(t.name)}</span><span class="when">${esc(whenLabel(t.date))}</span></button>`; });
+    testsOf(md.id).forEach(t=>{ h += `<button class="navlink ttest" data-go="test" data-tid="${esc(t.id)}" aria-current="${ui.page==='test'&&ui.tid===t.id}"><span>${esc(t.name)}</span>${ui.builds[t.id]&&ui.builds[t.id].running?'<span class="when"><span class="spin"></span>Building</span>':`<span class="when">${esc(whenLabel(t.date))}</span>`}</button>`; });
   });
   if(!mods.length) h += `<p class="muted small" style="padding:6px 10px">No modules yet.</p>`;
   h += `</div>`;
@@ -998,7 +1025,7 @@ function renderModule(){
 }
 
 /* ============ Test workspace ============ */
-const TABS = [['overview','Overview'],['lessons','Lessons'],['practice','Practice'],['mock','Mock test'],['short','Short answer'],['cards','Flashcards'],['review','Review misses'],['manage','Manage content']];
+const TABS = [['overview','Overview'],['guide','Study guide'],['lessons','Lessons'],['practice','Practice'],['mock','Mock test'],['short','Short answer'],['cards','Flashcards'],['review','Review misses'],['build','Add materials'],['manage','Manage content']];
 function renderTest(){
   const t=getTest(ui.tid), md=getModule(t.moduleId), r=readiness(t), p=prog(t.id);
   const misses = t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===0).length;
@@ -1007,13 +1034,16 @@ function renderTest(){
   if(!ui.sess) h += `<div class="pagehead"><div class="stack" style="gap:8px"><h1>${esc(t.name)}</h1><div class="row">${datePill(t.date)}<span class="pill">${t.format.mcq} MCQ + ${t.format.sa} short answer</span></div></div>${ring(r.pct,76)}</div>`;
   h += `<div class="tabs" role="tablist">${TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-current="${ui.tab===k}">${l}${counts[k]!==undefined&&counts[k]>0?`<span class="n num">${counts[k]}</span>`:''}</button>`).join('')}</div>`;
   if(ui.sess) return h + (ui.sess.done? renderResults(t) : renderItem(t));
-  const f = {overview:renderOverview, lessons:renderLessons, practice:renderPractice, mock:renderMock, short:renderShort, cards:renderDeck, review:renderReview, manage:renderManage}[ui.tab] || renderOverview;
+  const f = {overview:renderOverview, guide:renderGuide, build:renderBuild, lessons:renderLessons, practice:renderPractice, mock:renderMock, short:renderShort, cards:renderDeck, review:renderReview, manage:renderManage}[ui.tab] || renderOverview;
   return h + f(t);
 }
-function emptyFor(what){ return `<div class="card empty"><h3>No ${what} yet</h3><p>Add them yourself, paste your notes for Claude to turn into questions, or import a set.</p><div style="margin-top:14px"><button class="btn" data-tab="manage">Add content</button></div></div>`; }
+function emptyFor(what){ return `<div class="card empty"><h3>No ${what} yet</h3><p>Upload your slides or notes and Claude writes them for you, or add them by hand.</p><div class="row" style="margin-top:14px;justify-content:center"><button class="btn" data-tab="build">Add study materials</button><button class="btn ghost" data-tab="manage">Add by hand</button></div></div>`; }
 
 function renderOverview(t){
   const r=readiness(t), p=prog(t.id), hist=(p.hist||[]).slice().reverse().slice(0,5);
+  if(!t.lessons.length && !t.mcq.length && !t.sa.length){ const b=ui.builds[t.id];
+    return `<div class="card empty"><h3>${b&&b.running?'Your study materials are being built':'This test is empty'}</h3><p>${b&&b.running?'Follow the progress in Add materials. Lessons and questions appear here as each file finishes.':'Upload your lecture slides, notes or readings. Claude reads them and writes the lessons, flashcards, study guide and practice questions for this test.'}</p><div class="row" style="margin-top:14px;justify-content:center"><button class="btn" data-tab="build">${b&&b.running?'See progress':'Add study materials'}</button>${b&&b.running?'':'<button class="btn ghost" data-tab="manage">Add by hand</button>'}</div></div>`; }
+  const traps = t.traps.length? `<section class="card stack"><div class="row between"><h2 style="font-size:1.15rem">Exam traps</h2><button class="btn quiet sm" data-tab="guide">See all ${t.traps.length}</button></div><div class="items">${t.traps.slice(0,4).map(x=>`<div class="item"><div class="t"><b>${esc(x.a)}</b> <span class="muted">vs</span> <b>${esc(x.b)}</b><div class="muted small">${esc(x.tip)}</div></div><span></span></div>`).join('')}</div></section>` : '';
   let h = `<div class="grid3">
     <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a 3-question check.`:'No lessons yet.'}</span></button>
     <button class="launch" data-tab="practice"><b>Practice</b><span>${t.mcq.length} multiple-choice questions with instant feedback.</span></button>
@@ -1024,6 +1054,7 @@ function renderOverview(t){
         const ls=t.lessons.filter(l=>l.topic===tp.id), ld=ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length;
         return `<div class="bar" style="--tc:${COLORS[i%COLORS.length]}"><span class="nm" title="${esc(tp.name)}"><b>${i+1}</b> ${esc(tp.name)}</span><span class="track"><i style="width:${pct(ok,qs.length)}%"></i></span><span class="num small muted">${ld}/${ls.length}</span></div>`; }).join('') + `</div></section>`;
   }
+  h += traps;
   h += `<section class="card"><h2 style="font-size:1.15rem;margin-bottom:6px">Recent attempts</h2>${hist.length?`<div class="activity">${hist.map(a=>`<div class="act"><span class="badge">${esc(a.kind.slice(0,2).toUpperCase())}</span><div><b>${esc(a.kind)}</b><div class="muted small">${esc(ago(a.at))}</div></div><span class="sc num">${a.score}/${a.n}</span></div>`).join('')}</div>`:'<p class="muted">No attempts yet. Start with a lesson or a practice round.</p>'}</section>`;
   return h;
 }
@@ -1214,8 +1245,8 @@ function renderManage(t){
     <div class="row" style="flex-wrap:nowrap"><input type="text" id="tp-new-${tid}" placeholder="New topic name"><button class="btn ghost" data-act="add-topic">Add</button></div>
     ${t.topics.length?'<div><button class="btn ghost sm" data-act="save-topics">Save topic names</button></div>':''}</section>`;
   // Add content
-  const types=[['mcq','Multiple choice'],['sa','Short answer'],['card','Flashcard'],['lesson','Lesson'],['gen','Generate from notes'],['import','Import JSON']];
-  h += `<section class="card stack"><h2 style="font-size:1.2rem">Add content</h2><div class="seg">${types.map(([k,l])=>`<button class="chip" data-addtype="${k}" aria-pressed="${ui.addType===k}">${l}</button>`).join('')}</div>${renderAddForm(t)}</section>`;
+  const types=[['mcq','Multiple choice'],['sa','Short answer'],['card','Flashcard'],['lesson','Lesson'],['import','Import JSON']];
+  h += `<section class="card stack"><div class="row between"><h2 style="font-size:1.2rem">Add content by hand</h2><button class="btn quiet sm" data-tab="build">Or build it from your files</button></div><div class="seg">${types.map(([k,l])=>`<button class="chip" data-addtype="${k}" aria-pressed="${ui.addType===k}">${l}</button>`).join('')}</div>${renderAddForm(t)}</section>`;
   // Content lists
   const list=(title,arr,fmt,kind)=>`<details class="card"><summary><span>${title} <span class="muted num">(${arr.length})</span></span></summary><div class="items">${arr.length?arr.map(x=>`<div class="item"><div class="t">${fmt(x)}</div><button class="btn quiet sm" data-act="del-item" data-kind="${kind}" data-id="${esc(x.id)}">Delete</button></div>`).join(''):'<p class="muted">None yet.</p>'}</div></details>`;
   h += list('Lessons', t.lessons, l=>`${topicTag(t,l.topic)} <b>${esc(l.title)}</b> <span class="muted small">${(l.points||[]).length} points · ${(l.cards||[]).length} cards · ${(l.check||[]).length} checks</span>`, 'lessons');
@@ -1247,18 +1278,6 @@ function renderAddForm(t){
     <label class="f">Key points <span class="hint">Separate points with a blank line. The first line of each point is its heading. Start lines with "- " for bullets.</span><textarea id="a-l-p-${tid}" style="min-height:160px" placeholder="IT governance&#10;The system by which the use of IT is directed and controlled.&#10;&#10;Four pillars&#10;- Strategic Management&#10;- Benefits Realization"></textarea></label>
     <label class="f">Flashcards <span class="hint">Optional. One per line: front | back</span><textarea id="a-l-c-${tid}" placeholder="Define IT governance | The system by which IT is directed and controlled"></textarea></label>
     <div><button class="btn" data-act="add-lesson">Add lesson</button></div></div>`;
-  if(k==='gen'){
-    if(!sampleFn) return `<p class="muted">Generating from notes needs Claude, which isn't available in this view. Open the page on claude.ai while signed in, or use Import JSON instead.</p>`;
-    const g=ui.gen;
-    let h = `<div class="stack"><p class="muted small">Paste lecture notes or slide text. Claude writes lessons, flashcards and questions using only what you paste. It uses your Claude usage.</p>
-      <label class="f">Notes<textarea id="g-notes-${tid}" style="min-height:200px" placeholder="Paste the text of your slides or notes here"></textarea></label>
-      <div class="grid3"><label class="f">Topic<select id="g-topic-${tid}"><option value="">Detect from notes</option>${t.topics.map(tp=>`<option value="${esc(tp.id)}">${esc(tp.name)}</option>`).join('')}</select></label>
-      <label class="f">Multiple choice<input type="number" id="g-m-${tid}" min="0" max="40" value="12"></label><label class="f">Short answer<input type="number" id="g-s-${tid}" min="0" max="10" value="3"></label></div>
-      <div class="row">${g&&g.busy?`<button class="btn" disabled>Writing…</button><button class="btn ghost" data-act="gen-stop">Stop</button><span class="muted small">${esc(g.status||'Thinking…')}</span>`:`<button class="btn" data-act="gen-run">Generate</button>`}</div>`;
-    if(g&&g.error) h += `<p style="color:var(--bad)">${esc(g.error)}</p>`;
-    if(g&&g.result){ const r=g.result; h += `<div class="note"><b>Ready to add:</b> ${(r.lessons||[]).length} lessons, ${(r.mcq||[]).length} multiple-choice, ${(r.sa||[]).length} short-answer questions. Check them in the lists below after adding; delete anything that looks wrong.</div><div class="row"><button class="btn" data-act="gen-add">Add to this test</button><button class="btn ghost" data-act="gen-discard">Discard</button></div>`; }
-    return h + `</div>`;
-  }
   return `<div class="stack"><p class="muted small">Paste JSON in this shape. Topics are matched by name; new names become new topics. You can ask Claude in chat to turn your slides into this format.</p>
     <pre class="code">${esc(IMPORT_SHAPE)}</pre><div><button class="btn ghost sm" data-act="copy-shape">Copy format</button></div>
     <label class="f">JSON<textarea id="imp-${tid}" style="min-height:160px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem"></textarea></label><div><button class="btn" data-act="import">Import</button></div></div>`;
@@ -1273,54 +1292,236 @@ function clean(data, t){ // normalise imported/generated content; returns {data,
   const out = {
     lessons:(data.lessons||[]).filter(l=>l&&l.title).map(l=>({id:rid('l'), topic:T(l), title:String(l.title), blurb:String(l.blurb||''),
       points:(l.points||[]).filter(p=>p&&(p.h||p.b)).map(p=>({h:String(p.h||''),b:String(p.b||'')})),
+      vis:(l.vis||[]).filter(v=>v&&Array.isArray(v.items)).map(v=>({title:String(v.title||'Key parts'), items:v.items.map(it=>Array.isArray(it)?[String(it[0]||''),String(it[1]||'')]:(it&&typeof it==='object')?[String(it.label||''),String(it.desc||it.description||'')]:[String(it||''),'']).filter(it=>it[0])})).filter(v=>v.items.length>1),
       cards:(l.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),f:String(c.f),b:String(c.b)})),
       check:(l.check||[]).filter(okMcq).map(q=>({q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')}))})),
     mcq:(data.mcq||[]).filter(okMcq).map(q=>({id:rid('q'),topic:T(q),q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')})),
     sa:(data.sa||[]).filter(s=>s&&s.q).map(s=>({id:rid('s'),topic:T(s),q:String(s.q),model:String(s.model||''),pts:(s.pts||[]).map(String)})),
-    cards:(data.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),topic:T(c),f:String(c.f),b:String(c.b)}))
+    cards:(data.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),topic:T(c),f:String(c.f),b:String(c.b)})),
+    traps:(data.traps||[]).filter(x=>x&&x.a&&x.b).map(x=>({id:rid('x'),a:String(x.a),b:String(x.b),tip:String(x.tip||'')}))
   };
   return {out, topics};
 }
-function ingest(t, data){
+// asChunk: store in its own doc (generated or imported sets); otherwise append to the test doc (single hand-added items)
+function ingest(t, data, asChunk){
+  t = getTest(t.id) || t;   // fresh topics, in case another file just added one
   const {out, topics} = clean(data, t);
-  const n = out.lessons.length+out.mcq.length+out.sa.length+out.cards.length;
+  ingest.last = out;
+  const keys = ['lessons','mcq','sa','cards','traps'];
+  const n = keys.reduce((a,k)=>a+out[k].length,0);
   if(!n) return 0;
-  editTest(t.id, d=>{ d.topics=topics; ['lessons','mcq','sa','cards'].forEach(k=>{ d[k]=[...(d[k]||[]), ...out[k]]; }); if(!d.moduleId) d.moduleId=t.moduleId; });
+  if(asChunk){
+    put('c_'+t.id+'_'+rid(''), Object.assign({created:Date.now()}, out));
+    if(topics.length!==t.topics.length || !docs['t_'+t.id]) editTest(t.id, d=>{ d.topics=topics; if(!d.moduleId) d.moduleId=t.moduleId; });
+  } else editTest(t.id, d=>{ d.topics=topics; keys.forEach(k=>{ if(out[k].length) d[k]=[...(d[k]||[]), ...out[k]]; }); if(!d.moduleId) d.moduleId=t.moduleId; });
   return n;
 }
-async function runGen(t){
-  const notes=val('g-notes-'+t.id); if(notes.length<80){ ui.gen={error:'Paste a bit more text first (at least a paragraph).'}; render(); return; }
-  const nm=Math.max(0,Math.min(40,+val('g-m-'+t.id)||0)), ns=Math.max(0,Math.min(10,+val('g-s-'+t.id)||0)), tsel=val('g-topic-'+t.id);
-  const tnames = t.topics.map(x=>x.name);
-  const prompt = `You are writing exam revision material for a university student from their lecture notes. Use ONLY facts stated in the notes below; do not add outside knowledge.
-Reply with only one JSON object in exactly this shape:
-{"lessons":[{"topic":"...","title":"...","blurb":"one line","points":[{"h":"short heading","b":"2-4 sentence plain-text explanation"}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
- "mcq":[{"topic":"...","q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}],
- "sa":[{"topic":"...","q":"...","model":"model answer of 3-6 sentences","pts":["key point a marker looks for"]}]}
-Rules:
-- One lesson per major section of the notes (at most 6). Each lesson: 3-5 points, 4-6 flashcards, exactly 3 check questions.
-- Exactly ${nm} items in "mcq" and ${ns} in "sa". Short-answer questions should include scenario questions that ask the student to apply the concepts.
-- "a" is the 0-based index of the correct option. Vary the position of the correct option. Distractors must be plausible and drawn from the notes (confusable terms make good distractors).
-- Plain text only, no markdown or HTML.
-- ${tsel? 'Use "'+(t.topics.find(x=>x.id===tsel)||{}).name+'" as the topic for everything.' : tnames.length? 'For "topic", use one of these names when it fits: '+JSON.stringify(tnames)+'. Otherwise use a short new topic name.' : 'For "topic", use a short name for the section of the notes it comes from.'}
+/* ============ Study guide ============ */
+function topicGroups(t){ return [...t.topics.map(tp=>tp.id), ...new Set([...t.lessons,...t.sa].map(x=>x.topic).filter(id=>!t.topics.some(tp=>tp.id===id)))]; }
+function renderGuide(t){
+  if(!t.lessons.length && !t.sa.length && !t.traps.length) return emptyFor('study notes');
+  let h='';
+  topicGroups(t).forEach(gid=>{ const ls=t.lessons.filter(l=>l.topic===gid); if(!ls.length) return; const tp=topicOf(t,gid);
+    h += `<section class="card guide"><span class="tag" style="--tc:${tp.c}">${tp.n?'Topic '+tp.n:'Topic'}</span><h2 style="font-size:1.4rem;margin-top:6px">${esc(tp.name)}</h2>` +
+      ls.map(l=>`<h3>${esc(l.title)}</h3><ul class="gl">${(l.points||[]).map(p=>`<li><b>${esc(p.h)}.</b> ${l.html?p.b:plain(p.b)}</li>`).join('')}${(l.vis||[]).map(v=>`<li><b>${esc(String(v.title).replace(/\s*\(tap each\)\s*/i,''))}:</b> ${v.items.map(i=>esc(i[0])).join(' · ')}</li>`).join('')}</ul>`).join('') + `</section>`; });
+  if(t.traps.length) h += `<section class="card stack"><div><h2 style="font-size:1.25rem">Exam traps</h2><p class="muted small" style="margin-top:4px">Pairs that are easy to mix up in multiple-choice questions.</p></div>
+    <div class="tablewrap"><table class="traps"><thead><tr><th>Don't confuse</th><th>With</th><th>How to tell them apart</th></tr></thead><tbody>${t.traps.map(x=>`<tr><td><b>${esc(x.a)}</b></td><td><b>${esc(x.b)}</b></td><td>${esc(x.tip)}</td></tr>`).join('')}</tbody></table></div></section>`;
+  if(t.sa.length) h += `<section class="card"><h2 style="font-size:1.25rem;margin-bottom:8px">Short-answer model answers</h2>${t.sa.map(s=>`<details class="sa"><summary>${esc(s.q)}</summary><div class="stack" style="gap:8px;margin-top:8px">${topicTag(t,s.topic)}<p>${esc(s.model)}</p>${(s.pts||[]).length?`<ul style="margin:0;padding-left:20px">${s.pts.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}</div></details>`).join('')}</section>`;
+  return h;
+}
 
-NOTES:
-"""
-${notes.slice(0,150000)}
-"""`;
-  const ctl = new AbortController(); ui.gen={busy:true, ctl, status:'Thinking… this can take a minute or two.'}; render();
-  try{
-    const data = await sampleFn.json(prompt, {signal:ctl.signal, cache:false, onText:({text})=>{ if(ui.gen&&ui.gen.busy){ ui.gen.status='Writing… '+text.length.toLocaleString()+' characters'; const s=document.querySelector('.gen-status'); render(); } }});
-    if(!data || typeof data!=='object') throw {code:'invalid_json'};
-    if(tsel) data.__topic=tsel;
-    ui.gen={result:data};
-  }catch(e){
-    const c=e&&e.code; ui.gen = c==='cancelled'? null : {error: c==='not_granted'||c==='sampling_disabled'? 'Claude isn\'t allowed for this page, so generation is off. Use Import JSON instead.' :
-      c==='rate_limited'? 'You have hit a usage limit. Try again later.' : c==='invalid_json'? 'Claude\'s answer could not be read as questions. Try again, or ask for fewer questions.' :
-      c==='prompt_too_large'? 'The notes are too long. Paste one topic at a time.' : 'Generation failed. Try again in a moment.'};
-    if(c==='not_granted'||c==='sampling_disabled') sampleFn=null;
+/* ============ Build a test from study materials ============ */
+const LIBS = { pdf:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', pdfw:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js', zip:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js' };
+const SIZES = { small:{label:'Fewer', mcq:8, sa:2}, standard:{label:'Standard', mcq:14, sa:3}, large:{label:'More', mcq:22, sa:5} };
+const loadedLibs = {};
+function loadScript(src){ return loadedLibs[src] || (loadedLibs[src] = new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>{ delete loadedLibs[src]; rej(new Error('Could not load the file reader. Check your connection and try again.')); }; document.head.appendChild(s); })); }
+async function pdfjs(){ await loadScript(LIBS.pdf); await loadScript(LIBS.pdfw); const lib=window.pdfjsLib; lib.GlobalWorkerOptions.workerSrc=LIBS.pdfw; return lib; }
+function xmlText(xml, pTag, tTag){ const doc=new DOMParser().parseFromString(xml,'application/xml');
+  return [...doc.getElementsByTagName(pTag)].map(p=>[...p.getElementsByTagName(tTag)].map(x=>x.textContent).join('')).filter(s=>s.trim()).join('\n'); }
+async function readPdf(f, st){
+  const lib = await pdfjs();
+  const pdf = await lib.getDocument({data:new Uint8Array(await f.arrayBuffer()), isEvalSupported:false}).promise;
+  const pages=[]; let thin=0;
+  for(let p=1;p<=pdf.numPages;p++){ const pg=await pdf.getPage(p); const tc=await pg.getTextContent();
+    const tx=tc.items.map(i=>(i.str||'')+(i.hasEOL?'\n':' ')).join('').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
+    if(tx.length<25) thin++; pages.push(tx); st.note='Reading page '+p+' of '+pdf.numPages; tick(); }
+  const res = {pages:pdf.numPages, text:pages.map((x,i)=>x?`[Page ${i+1}]\n${x}`:'').filter(Boolean).join('\n\n')};
+  if(thin > pdf.numPages*0.5){ // scanned or image-only slides: render the empty pages so Claude can read them
+    res.images=[]; res.scanned=true;
+    for(let p=1;p<=pdf.numPages && res.images.length<60;p++){ if(pages[p-1].length>=25) continue; st.note='Preparing page image '+p+' of '+pdf.numPages; tick(); res.images.push(await renderPage(pdf,p)); } }
+  return res;
+}
+async function renderPage(pdf,p){ const pg=await pdf.getPage(p); const v0=pg.getViewport({scale:1}); const v=pg.getViewport({scale:Math.min(2,1400/v0.width)});
+  const c=document.createElement('canvas'); c.width=Math.ceil(v.width); c.height=Math.ceil(v.height); const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  await pg.render({canvasContext:ctx, viewport:v}).promise; return await new Promise(r=>c.toBlob(r,'image/jpeg',0.82)); }
+async function readPptx(f){
+  await loadScript(LIBS.zip); const z=await JSZip.loadAsync(await f.arrayBuffer());
+  const num=n=>+((n.match(/(\d+)\.xml$/)||[0,0])[1]);
+  const slides=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>num(a)-num(b));
+  const out=[];
+  for(const n of slides){ let tx=xmlText(await z.file(n).async('string'),'a:p','a:t');
+    const rel=z.file('ppt/slides/_rels/slide'+num(n)+'.xml.rels'); const m=rel && (await rel.async('string')).match(/notesSlides\/(notesSlide\d+\.xml)/);
+    if(m && z.file('ppt/notesSlides/'+m[1])){ const notes=xmlText(await z.file('ppt/notesSlides/'+m[1]).async('string'),'a:p','a:t').split('\n').filter(s=>!/^\d+$/.test(s.trim())).join('\n').trim(); if(notes) tx+='\nSpeaker notes: '+notes; }
+    if(tx.trim()) out.push(`[Slide ${num(n)}]\n${tx}`); }
+  return {pages:slides.length, text:out.join('\n\n')};
+}
+async function readDocx(f){ await loadScript(LIBS.zip); const z=await JSZip.loadAsync(await f.arrayBuffer()); const d=z.file('word/document.xml'); if(!d) throw new Error('This Word file looks empty or damaged.'); return {text:xmlText(await d.async('string'),'w:p','w:t')}; }
+function build(tid){ return ui.builds[tid] || (ui.builds[tid]={files:[], size:'standard', jobs:null, running:false, ctl:null}); }
+function tick(){ if(tick.t) return; tick.t=setTimeout(()=>{ tick.t=null; render(); }, 350); }
+function fileNote(f){ return [f.pages?`${f.pages} ${f.ext==='pptx'?'slide':'page'}${f.pages===1?'':'s'}`:'', f.text&&f.text.trim()?`${f.text.length.toLocaleString()} characters`:'', f.images&&f.images.length?`${f.images.length} page image${f.images.length>1?'s':''} for Claude to read`:''].filter(Boolean).join(' · '); }
+async function addFiles(tid, list){
+  const b=build(tid);
+  for(const f of list){
+    const ext=(f.name.split('.').pop()||'').toLowerCase();
+    const st={id:rid('f'), name:f.name, ext, status:'reading', note:'Reading…'}; b.files.push(st); render();
+    try{
+      let r;
+      if(['txt','md','markdown','csv'].includes(ext)) r={text:await f.text()};
+      else if(ext==='pdf') r=await readPdf(f,st);
+      else if(ext==='pptx') r=await readPptx(f);
+      else if(ext==='docx') r=await readDocx(f);
+      else if(/^image\//.test(f.type)){ if(f.size>20e6) throw new Error('This image is over 20 MB.'); r={images:[f], pages:1}; }
+      else throw new Error(ext==='ppt'||ext==='doc'? 'Old Office format. Save it as .pptx or .docx and add it again.' : 'This file type isn\'t supported. Use PDF, .pptx, .docx, text or an image.');
+      Object.assign(st, r);
+      if(!(st.text||'').trim() && !(st.images||[]).length) throw new Error('No text found in this file.');
+      st.status='ready'; st.note=fileNote(st);
+    }catch(e){ st.status='error'; st.note=(e&&e.message)||'Could not read this file.'; }
+    render();
   }
-  render();
+}
+function splitText(text, max){
+  if(text.length<=max) return [text];
+  const blocks=text.split(/\n\n(?=\[(?:Page|Slide) )/); const out=[]; let cur='';
+  for(const bl of blocks){ if(cur && (cur.length+bl.length)>max){ out.push(cur); cur=''; }
+    if(bl.length>max){ for(let i=0;i<bl.length;i+=max) out.push(bl.slice(i,i+max)); } else cur += (cur?'\n\n':'')+bl; }
+  if(cur) out.push(cur); return out;
+}
+function topicRule(names){ return names.length
+  ? `Use one of these existing topic names when the material belongs to it: ${JSON.stringify(names)}. Otherwise give it a short new topic name (2 to 6 words). Use one topic name for the whole material unless it clearly covers several separate topics.`
+  : `Give the material a short topic name (2 to 6 words), keeping any lecture or topic number the material uses (for example "Topic 5: Risk Optimization"). Use one topic name for the whole material unless it clearly covers several separate topics.`; }
+function notesPrompt(j, names){ return `You are an expert tutor turning a university student's study material into revision notes for an upcoming test. Source: "${j.name}".
+Use ONLY facts from the material below. Do not add outside knowledge. Keep the material's own terms, lists, names, numbers, dates, frameworks and models exactly as given.
+Reply with only one JSON object of this shape:
+{"lessons":[{"topic":"...","title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
+ "traps":[{"a":"term or idea","b":"what it is easily confused with","tip":"how to tell them apart"}]}
+Rules:
+- Split the material into lessons of one main idea each, in the material's order: usually 3 to 6 lessons, up to 8 for long material.
+- Each lesson has 3 to 6 points. A point's "b" is 1 to 4 plain sentences; for a list, put each item on its own line starting with "- ".
+- "vis": for each list, framework, sequence, process, model or matrix in the lesson, add one entry whose items are its parts in order (2 to 8 items). Leave "vis" empty when there are none.
+- 4 to 8 flashcards per lesson that test definitions, lists, who/what/which, and the order of steps.
+- Exactly 3 check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
+- "traps": 3 to 8 pairs of things in this material that students are likely to mix up in a multiple-choice test.
+- Topic: ${topicRule(names)}
+- Plain text only: no markdown, no HTML.
+
+MATERIAL:
+"""
+${j.text.slice(0,150000)}
+"""`; }
+function questionsPrompt(j, names, sz){ return `You are writing practice questions for a university test from a student's study material. Source: "${j.name}".
+Use ONLY facts from the material below. Do not add outside knowledge.
+Reply with only one JSON object of this shape:
+{"mcq":[{"topic":"...","q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was"}],
+ "sa":[{"topic":"...","q":"...","model":"model answer","pts":["a key point a marker looks for"]}]}
+Rules:
+- Exactly ${sz.mcq} multiple-choice questions covering the whole material: recall (definitions, lists, who/which, order of steps) and application (short scenarios such as "A company ... This is an example of:"). Include one or two "Which is NOT ..." questions.
+- 4 options each with exactly one correct. Distractors are real terms from the material that students confuse. "a" is the 0-based index of the correct option; vary its position.
+- Exactly ${sz.sa} short-answer questions: mix "explain" or "compare" questions with scenario questions that ask the student to apply the concepts. Model answers are 4 to 8 sentences; give 3 to 5 key points each.
+- For "topic", use ${names.length? 'one of these names: '+JSON.stringify(names) : 'a short topic name for the material (2 to 6 words)'}.
+- Plain text only: no markdown, no HTML.
+
+MATERIAL:
+"""
+${j.text.slice(0,150000)}
+"""`; }
+function transcribePrompt(j, from, to){ return `These images are pages ${from} to ${to} of a student's study material ("${j.name}"): lecture slides, handouts or handwritten notes.
+Transcribe all the text in reading order. Describe diagrams, tables and charts in words inside [square brackets], including every label and how the parts connect. Start each page with [Page n]. Reply with the transcription only.`; }
+function jobError(e){ const c=e&&e.code; return c==='cancelled'?'Stopped' : c==='not_granted'||c==='sampling_disabled'?'Claude isn\'t allowed for this page, so building is off.' :
+  c==='rate_limited'?'You have hit a usage limit. Retry later.' : c==='invalid_json'?'Claude\'s answer could not be read. Retry this file.' :
+  c==='prompt_too_large'?'Too long for one go. Split the file and add the parts.' : c==='images_unavailable'?'Page images can\'t be sent to Claude in this view.' :
+  c==='image_rejected'?'One of the images could not be read.' : c==='too_short'?'Not enough text in this file to build from.' : c==='refused'?'Claude declined this material.' :
+  c==='gone'?'The test was deleted.' : 'Something went wrong. Retry this file.'; }
+async function runJob(tid, b, j){
+  const sig=b.ctl.signal; j.status='running'; tick();
+  try{
+    if(j.images && j.images.length){
+      if(!b.maxImg) throw {code:'images_unavailable'};
+      let tx=''; const per=b.maxImg, total=Math.ceil(j.images.length/per);
+      for(let k=0;k<total;k++){ j.stage=`Reading page images (${k+1} of ${total})`; tick();
+        const r=await sampleFn(transcribePrompt(j, k*per+1, Math.min(j.images.length,(k+1)*per)), {images:j.images.slice(k*per,(k+1)*per), signal:sig, cache:false}); tx+='\n\n'+r.text; }
+      j.text=((j.text||'')+tx).trim(); j.images=null;
+    }
+    if((j.text||'').trim().length<60) throw {code:'too_short'};
+    if(!j.notesDone){
+      const t0=getTest(tid); if(!t0) throw {code:'gone'};
+      j.stage='Writing study notes'; tick();
+      const notes=await sampleFn.json(notesPrompt(j, t0.topics.map(x=>x.name)), {signal:sig, cache:false, onText:({text})=>{ j.stage='Writing study notes · '+text.length.toLocaleString()+' characters'; tick(); }});
+      const t1=getTest(tid); if(!t1) throw {code:'gone'};
+      ingest(t1, notes&&typeof notes==='object'?{lessons:notes.lessons, traps:notes.traps}:{}, true);
+      const o=ingest.last; j.counts={lessons:o.lessons.length, traps:o.traps.length};
+      j.topics=[...new Set(o.lessons.map(l=>topicOf(getTest(tid)||t1,l.topic).name))];
+      j.notesDone=true;
+    }
+    const t2=getTest(tid); if(!t2) throw {code:'gone'};
+    j.stage='Writing practice questions'; tick();
+    const qs=await sampleFn.json(questionsPrompt(j, (j.topics&&j.topics.length)?j.topics:t2.topics.map(x=>x.name), SIZES[b.size]||SIZES.standard), {signal:sig, cache:false, onText:({text})=>{ j.stage='Writing practice questions · '+text.length.toLocaleString()+' characters'; tick(); }});
+    const t3=getTest(tid); if(!t3) throw {code:'gone'};
+    ingest(t3, qs&&typeof qs==='object'?{mcq:qs.mcq, sa:qs.sa}:{}, true);
+    const o=ingest.last; Object.assign(j.counts, {mcq:o.mcq.length, sa:o.sa.length});
+    const pl=(n,w)=>n+' '+w+(n===1?'':'s');
+    j.status='done'; j.stage=`Done: ${pl(j.counts.lessons,'lesson')}, ${j.counts.mcq} MCQ, ${j.counts.sa} short answer, ${pl(j.counts.traps,'trap')}`;
+  }catch(e){
+    j.status = e&&e.code==='cancelled' ? 'stopped' : 'failed'; j.stage = jobError(e);
+    if(e&&(e.code==='not_granted'||e.code==='sampling_disabled')){ sampleFn=null; b.ctl.abort(); }
+  }
+  tick();
+}
+async function startBuild(tid){
+  const b=build(tid); if(b.running || !sampleFn) return;
+  const ready=b.files.filter(f=>f.status==='ready'); if(!ready.length) return;
+  let lim=null; try{ lim=await sampleFn.limits(); }catch(e){}
+  b.maxImg = lim&&lim.images ? lim.images.maxCount : 0;
+  b.jobs=[];
+  ready.forEach(f=>{ f.status='used';
+    if(f.images&&f.images.length) b.jobs.push({id:rid('j'), name:f.name, ext:f.ext, text:f.text||'', images:f.images, stage:'Waiting', status:'queued'});
+    else { const parts=splitText(f.text||'', 60000); parts.forEach((tx,i)=>b.jobs.push({id:rid('j'), name:f.name+(parts.length>1?` (part ${i+1} of ${parts.length})`:''), ext:f.ext, text:tx, stage:'Waiting', status:'queued'})); } });
+  await runJobs(tid, b, b.jobs.slice());
+}
+async function runJobs(tid, b, list){
+  b.running=true; b.ctl=new AbortController(); render();
+  const queue=list.slice();
+  const worker=async()=>{ while(queue.length && !b.ctl.signal.aborted){ await runJob(tid, b, queue.shift()); } };
+  await Promise.all([worker(), worker()]);   // two files at a time
+  b.jobs.forEach(j=>{ if(j.status==='queued'){ j.status='stopped'; j.stage='Stopped'; } });
+  b.running=false; render();
+  const ok=b.jobs.filter(j=>j.status==='done').length;
+  if(ok && b.jobs.every(j=>j.status==='done')) toast('Your study materials are ready');
+}
+function renderBuild(t){
+  const b=build(t.id); let h='';
+  if(!sampleFn) h += `<div class="banner">Building from your files needs Claude, which isn't available in this view. Open the page on claude.ai while signed in. You can still add questions by hand in Manage content.</div>`;
+  if(b.jobs){
+    const total=b.jobs.length, done=b.jobs.filter(j=>j.status==='done').length, failed=b.jobs.filter(j=>j.status==='failed'||j.status==='stopped').length;
+    h += `<section class="card stack"><div class="row between" style="align-items:flex-start"><div><h2 style="font-size:1.3rem">${b.running?'Building your study materials':done===total?'Your study materials are ready':'Build finished with problems'}</h2>
+      <p class="muted small" style="margin-top:4px">${b.running?'About 1 to 3 minutes per file. It keeps going while this page is open, even if you switch tabs. Finished files are saved straight away.':`${done} of ${total} file${total>1?'s':''} built${failed?`, ${failed} need${failed>1?'':'s'} a retry`:''}.`}</p></div>
+      ${b.running?'<button class="btn ghost" data-act="build-stop">Stop</button>':''}</div>
+      <div class="progress"><i style="width:${pct(done,total)}%"></i></div>
+      <div class="files">${b.jobs.map(j=>{ const cls=j.status==='done'?'ok':j.status==='running'?'run':(j.status==='failed'||j.status==='stopped')?'err':'';
+        return `<div class="file"><span class="ftype">${esc(j.ext||'txt')}</span><div style="min-width:0"><div class="nm" title="${esc(j.name)}">${esc(j.name)}</div><div class="state ${cls}">${j.status==='running'?'<span class="spin"></span>':''}${esc(j.stage)}</div></div>
+          ${(j.status==='failed'||j.status==='stopped')&&!b.running&&sampleFn?`<button class="btn ghost sm" data-act="job-retry" data-id="${esc(j.id)}">Retry</button>`:'<span></span>'}</div>`; }).join('')}</div>
+      ${!b.running?`<div class="row">${done?'<button class="btn" data-tab="guide">Read the study guide</button><button class="btn ghost" data-tab="lessons">Start lessons</button><button class="btn ghost" data-tab="mock">Take a mock test</button>':''}<button class="btn quiet" data-act="build-clear">Add more materials</button></div>`:''}</section>`;
+    return h;
+  }
+  const ready=b.files.filter(f=>f.status==='ready'), reading=b.files.some(f=>f.status==='reading');
+  h += `<section class="card stack"><div><h2 style="font-size:1.3rem">Add study materials</h2><p class="muted" style="margin-top:4px">Upload your lecture slides, notes or readings. Claude reads them and writes this test's lessons, flashcards, study guide, exam traps, practice questions and short-answer questions.</p></div>
+    <label class="drop"><input type="file" id="bfile" multiple accept=".pdf,.pptx,.docx,.txt,.md,image/*"><b>Drop files here, or choose files</b><span class="small">PDF, PowerPoint (.pptx), Word (.docx), text, or photos of your notes</span></label>
+    ${b.files.length?`<div class="files">${b.files.map(f=>`<div class="file"><span class="ftype">${esc(f.ext||'txt')}</span><div style="min-width:0"><div class="nm" title="${esc(f.name)}">${esc(f.name)}</div><div class="state ${f.status==='ready'?'ok':f.status==='error'?'err':'run'}">${f.status==='reading'?'<span class="spin"></span>':''}${esc(f.note||'')}</div></div><button class="btn quiet sm" data-act="file-remove" data-id="${esc(f.id)}">Remove</button></div>`).join('')}</div>`:''}
+    <label class="f">Or paste text <span class="hint">Notes, a reading, or text copied from slides</span><textarea id="bpaste-${t.id}" style="min-height:90px"></textarea></label>
+    <div><button class="btn ghost sm" data-act="build-paste">Add pasted text</button></div>
+    <div><div class="label">Practice questions per file</div><div class="row" style="margin-top:8px">${Object.entries(SIZES).map(([k,s])=>`<button class="chip" data-size="${k}" aria-pressed="${b.size===k}">${s.label} · ${s.mcq} MCQ + ${s.sa} short</button>`).join('')}</div></div>
+    <div class="row"><button class="btn" data-act="build-start" ${ready.length&&sampleFn&&!reading?'':'disabled'}>Build study materials</button><span class="muted small">${ready.length} file${ready.length===1?'':'s'} ready · uses your Claude usage</span></div>
+    <p class="muted small">Your files stay on this device. Only the text read from them, and page images of scanned slides, are sent to Claude. Check what it writes: it works only from your files, but it can still make mistakes.</p></section>`;
+  return h;
 }
 
 /* ============ Modals ============ */
@@ -1336,7 +1537,8 @@ function renderModal(){
       <label class="f">Test name<input type="text" id="mt-name" placeholder="e.g. Midterm, Quiz 2, Final exam" required></label>
       <label class="f">Test date <span class="hint">Optional, adds a countdown</span><input type="date" id="mt-date"></label>
       <div class="grid2"><label class="f">MCQs in the test<input type="number" id="mt-m" min="0" max="200" value="15"></label><label class="f">Short-answer questions<input type="number" id="mt-s" min="0" max="20" value="3"></label></div>
-      <label class="f">Topics covered <span class="hint">One per line, optional</span><textarea id="mt-topics" placeholder="Topic 5: Risk Optimization&#10;Topic 6: Resource Optimization"></textarea></label>
+      <label class="f">Topics covered <span class="hint">Optional, one per line. Leave blank to let Claude name them from your files.</span><textarea id="mt-topics" style="min-height:80px" placeholder="Topic 5: Risk Optimization&#10;Topic 6: Resource Optimization"></textarea></label>
+      <label class="row" style="gap:10px;font-weight:700;flex-wrap:nowrap;align-items:flex-start"><input type="checkbox" id="mt-build" checked style="width:18px;height:18px;margin-top:3px;accent-color:var(--accent);flex:none"><span>Build it from my study materials<span class="hint" style="display:block;font-weight:400;color:var(--muted);font-size:.85rem">Next, upload your slides or notes and Claude writes the lessons and questions.</span></span></label>
       <div class="row"><button class="btn" type="submit">Create test</button><button class="btn ghost" type="button" data-act="close-modal">Cancel</button></div></form></div>`;
   if(m.kind==='confirm') return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><div class="card stack"><h2 id="mh" style="font-size:1.25rem">${esc(m.title)}</h2><p>${esc(m.text)}</p>
       <div class="row"><button class="btn danger" data-act="${m.act}">${esc(m.ok)}</button><button class="btn ghost" data-act="close-modal">Cancel</button></div></div></div>`;
@@ -1354,10 +1556,11 @@ document.addEventListener('submit', e=>{
   if(kind==='newTest'){ const name=val('mt-name'); if(!name) return; const mid=ui.modal.mid; const id=rid('t');
     const topics=val('mt-topics').split('\n').map(s=>s.trim()).filter(Boolean).map(n=>({id:rid('tp'),name:n}));
     put('t_'+id, {moduleId:mid, name, date:val('mt-date'), format:{mcq:Math.max(0,+val('mt-m')||0), sa:Math.max(0,+val('mt-s')||0)}, topics, lessons:[], mcq:[], sa:[], cards:[], created:Date.now()});
-    ui.modal=null; ui.addType='gen'; go('test',{tid:id, tab:'manage'}); toast('Test created. Now add some content.'); }
+    const fromFiles = !!(document.getElementById('mt-build')||{}).checked;
+    ui.modal=null; go('test',{tid:id, tab:fromFiles?'build':'manage'}); toast(fromFiles?'Test created. Now add your study materials.':'Test created. Now add some content.'); }
 });
 document.addEventListener('click', e=>{
-  const el = e.target.closest('[data-go],[data-tab],[data-act],[data-lesson],[data-ltab],[data-step],[data-pt],[data-opt],[data-ckopt],[data-topic],[data-count],[data-addtype],input[data-tick]');
+  const el = e.target.closest('[data-go],[data-tab],[data-act],[data-lesson],[data-ltab],[data-step],[data-pt],[data-opt],[data-ckopt],[data-topic],[data-count],[data-addtype],[data-size],input[data-tick]');
   if(!el) return;
   const t = curTest();
   if(el.dataset.tick!==undefined){ ui.sess.items[ui.sess.i].ticks[+el.dataset.tick]=el.checked; return; }
@@ -1370,6 +1573,7 @@ document.addEventListener('click', e=>{
   if(el.dataset.topic){ const id=el.dataset.topic, s=ui.setup.topics; s.has(id)?s.delete(id):s.add(id); if(!s.size) s.add(id); render(); return; }
   if(el.dataset.count!==undefined){ ui.setup.count=+el.dataset.count; render(); return; }
   if(el.dataset.addtype){ ui.addType=el.dataset.addtype; render(true); return; }
+  if(el.dataset.size){ build(ui.tid).size=el.dataset.size; render(); return; }
   if(el.dataset.opt!==undefined){ pickOpt(+el.dataset.opt); return; }
   if(el.dataset.ckopt!==undefined){ const ck=ui.ck; if(!ck||ck.picked!==null) return; ck.picked=+el.dataset.ckopt; if(ck.qs[ck.i].opts[ck.picked].ok) ck.score++; render(); return; }
   act(el.dataset.act, el, t);
@@ -1421,7 +1625,7 @@ function act(a, el, t){
     case 'save-topics': { editTest(t.id,d=>{ d.topics=t.topics.map(tp=>({id:tp.id,name:val('tp-'+tp.id)||tp.name})); }); render(); toast('Topics saved'); break; }
     case 'add-topic': { const n=val('tp-new-'+t.id); if(!n) return; editTest(t.id,d=>{ d.topics=[...t.topics,{id:rid('tp'),name:n}]; }); render(true); toast('Topic added'); break; }
     case 'del-topic': { const id=el.dataset.id; editTest(t.id,d=>{ d.topics=t.topics.filter(x=>x.id!==id); }); render(true); break; }
-    case 'del-item': { const kind=el.dataset.kind, id=el.dataset.id; editTest(t.id,d=>{ if(id.startsWith('b-')) d.removed=[...(d.removed||[]),id]; else d[kind]=(d[kind]||[]).filter(x=>x.id!==id); }); render(); toast('Deleted'); break; }
+    case 'del-item': { const kind=el.dataset.kind, id=el.dataset.id; editTest(t.id,d=>{ if((d[kind]||[]).some(x=>x.id===id)) d[kind]=d[kind].filter(x=>x.id!==id); else d.removed=[...(d.removed||[]),id]; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Deleted'); break; }
     case 'add-mcq': { const q=val('a-mcq-q-'+t.id); const opts=[0,1,2,3].map(i=>val('a-mcq-o'+i+'-'+t.id)); let ai=[0,1,2,3].find(i=>{const r=document.getElementById('a-mcq-r'+i+'-'+t.id); return r&&r.checked;});
       const kept=[]; let a=-1; opts.forEach((o,i)=>{ if(o){ if(i===ai) a=kept.length; kept.push(o); } });
       if(!q||kept.length<2){ toast('Add a question and at least two options'); return; } if(a<0){ toast('Select the correct option'); return; }
@@ -1433,16 +1637,25 @@ function act(a, el, t){
       const cards=val('a-l-c-'+t.id).split('\n').map(x=>x.split('|')).filter(x=>x.length>=2&&x[0].trim()&&x[1].trim()).map(x=>[x[0].trim(),x.slice(1).join('|').trim()]);
       ingestOne(t,{lessons:[{title,blurb:val('a-l-s-'+t.id),points,cards,check:[]}]}, val('a-l-topic-'+t.id)); break; }
     case 'import': { let data; try{ data=JSON.parse(val('imp-'+t.id)); }catch(err){ toast('That is not valid JSON'); return; }
-      if(Array.isArray(data)) data={mcq:data}; const n=ingest(t,data); if(n){ const el2=document.getElementById('imp-'+t.id); if(el2) el2.value=''; render(); toast('Imported '+n+' items'); } else toast('Nothing in that JSON matched the format'); break; }
+      if(Array.isArray(data)) data={mcq:data}; const n=ingest(t,data,true); if(n){ const el2=document.getElementById('imp-'+t.id); if(el2) el2.value=''; render(); toast('Imported '+n+' items'); } else toast('Nothing in that JSON matched the format'); break; }
     case 'copy-shape': { try{ navigator.clipboard.writeText(IMPORT_SHAPE).then(()=>toast('Format copied'),()=>toast('Select the text to copy it')); }catch(err){ toast('Select the text to copy it'); } break; }
-    case 'gen-run': runGen(t); break;
-    case 'gen-stop': if(ui.gen&&ui.gen.ctl) ui.gen.ctl.abort(); break;
-    case 'gen-add': { const n=ingest(t, ui.gen.result); ui.gen=null; const ta=document.getElementById('g-notes-'+t.id); if(ta) ta.value=''; render(); toast(n?'Added '+n+' items':'Nothing usable in that answer'); break; }
-    case 'gen-discard': ui.gen=null; render(); break;
+    case 'build-start': startBuild(t.id); break;
+    case 'build-stop': { const b=build(t.id); if(b.ctl) b.ctl.abort(); break; }
+    case 'build-clear': { const b=build(t.id); if(!b.running){ b.jobs=null; b.files=[]; } render(true); break; }
+    case 'build-paste': { const ta=document.getElementById('bpaste-'+t.id); const tx=ta?ta.value.trim():''; if(tx.length<60){ toast('Paste at least a paragraph'); return; }
+      const b=build(t.id); const st={id:rid('f'), name:'Pasted text '+(b.files.filter(f=>f.ext==='txt').length+1), ext:'txt', text:tx, status:'ready'}; st.note=fileNote(st); b.files.push(st); ta.value=''; render(); break; }
+    case 'file-remove': { const b=build(t.id); b.files=b.files.filter(f=>f.id!==el.dataset.id); render(); break; }
+    case 'job-retry': { const b=build(t.id); const j=b.jobs&&b.jobs.find(x=>x.id===el.dataset.id); if(j&&!b.running){ j.status='queued'; j.stage='Waiting'; runJobs(t.id, b, [j]); } break; }
   }
 }
 function ingestOne(t, data, topicId){ if(topicId) data.__topic=topicId; const n=ingest(t,data); if(n){ render(true); toast('Added'); } }
-function delTest(tid){ if(tid===BUILTIN_TEST_ID) put('t_'+tid,{deleted:true}); else put('t_'+tid,null); put('p_'+tid,null); }
+function delTest(tid){ if(tid===BUILTIN_TEST_ID) put('t_'+tid,{deleted:true}); else put('t_'+tid,null); put('p_'+tid,null);
+  Object.keys(docs).forEach(k=>{ if(k.startsWith('c_'+tid+'_')) put(k,null); }); }
+document.addEventListener('change', e=>{ if(e.target.id==='bfile' && ui.page==='test'){ const fs=[...e.target.files]; e.target.value=''; addFiles(ui.tid, fs); } });
+const dropOf = e => e.target && e.target.closest ? e.target.closest('.drop') : null;
+document.addEventListener('dragover', e=>{ const d=dropOf(e); if(d){ e.preventDefault(); d.classList.add('over'); } });
+document.addEventListener('dragleave', e=>{ const d=dropOf(e); if(d) d.classList.remove('over'); });
+document.addEventListener('drop', e=>{ const d=dropOf(e); if(d){ e.preventDefault(); d.classList.remove('over'); if(e.dataTransfer&&e.dataTransfer.files.length) addFiles(ui.tid, [...e.dataTransfer.files]); } });
 
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && (ui.modal||ui.menu)){ ui.modal=null; ui.menu=false; renderRail(); renderOverlay(); return; }
@@ -1461,5 +1674,5 @@ window.addEventListener('hashchange', ()=>{ const before=routeKey(); readHash();
 readHash();
 render(true);
 initStore();
-(async()=>{ try{ if(window.claude&&window.claude.use){ sampleFn = await claude.use('sample'); if(ui.page==='test'&&ui.tab==='manage') render(); } }catch(e){} })();
+(async()=>{ try{ if(window.claude&&window.claude.use){ sampleFn = await claude.use('sample'); if(ui.page==='test') render(); } }catch(e){} })();
 </script>
