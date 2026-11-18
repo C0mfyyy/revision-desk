@@ -319,6 +319,8 @@ function ago(ts){ const s=(Date.now()-ts)/1000; if(s<60) return 'just now'; if(s
 /* ============ Storage: account db when available, else this browser ============ */
 const LS_KEY = 'revdesk.v1';
 let docs = {}; let mode = 'connecting'; let col = null; let slowNote = false; let saveError = '';
+let unsub = null, myId = null, localReason = '';   // localReason: 'signedout' | 'readonly'
+const LOCAL_ONLY_KEY = LS_KEY + '.localOnly';
 const dirty = {}, timers = {}, inflight = {};
 function lsGet(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{}; }catch(e){ return {}; } }
 function lsSet(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(docs)); }catch(e){} }
@@ -338,26 +340,40 @@ async function flush(id){
     while(inflight[id].again);
     delete dirty[id]; if(saveError){ saveError=''; renderRail(); }
   }catch(e){
+    // the account store refused the write (view-only access on a shared page, or access withdrawn): keep the work in this browser instead
+    if(e && ['invalid_argument','not_granted','revoked','capability_disabled','capability_removed'].includes(e.code)){ delete inflight[id]; switchToLocal(); return; }
     saveError = e && e.code==='quota_exceeded' ? 'Storage is full. Delete some tests to save more.' : 'Some changes could not be saved. They will retry on your next change.';
     renderRail();
   }finally{ delete inflight[id]; }
 }
-function goLocal(){ mode='local'; const loc=lsGet(); for(const k in loc) if(!dirty[k]) docs[k]=loc[k]; lsSet(); for(const k in dirty) delete dirty[k]; render(); }
+function goLocal(reason){ mode='local'; localReason=reason||'signedout'; const loc=lsGet(); for(const k in loc) if(!dirty[k]) docs[k]=loc[k]; lsSet(); for(const k in dirty) delete dirty[k]; render(); }
+function switchToLocal(){
+  if(mode==='local') return;
+  try{ if(unsub) unsub(); }catch(e){}
+  mode='local'; localReason='readonly'; saveError='';
+  const loc=lsGet(); for(const k in loc) if(docs[k]===undefined && !dirty[k]) docs[k]=loc[k];   // keep what is on screen, add earlier browser saves
+  lsSet(); for(const k in dirty) delete dirty[k];
+  try{ if(myId) localStorage.setItem(LOCAL_ONLY_KEY, myId); }catch(e){}
+  render(); toast('Saving in this browser instead');
+}
 async function initStore(){
   if(!window.claude || !window.claude.use){ goLocal(); return; }
   let db=null, user=null;
   try{ [db,user] = await Promise.all([claude.use('db'), claude.use('user')]); }catch(e){}
   const uid = user ? await user.id() : null;
-  if(!db || !uid){ goLocal(); return; }
+  if(!db || !uid){ goLocal('signedout'); return; }
+  myId = uid;
+  let remembered=null; try{ remembered=localStorage.getItem(LOCAL_ONLY_KEY); }catch(e){}
+  if(remembered===uid){ goLocal('readonly'); return; }   // this account was refused before on this page
   col = db.collection('data/users/'+uid);
   const timer = setTimeout(()=>{ if(mode==='connecting'){ slowNote=true; renderRail(); } }, 10000);
-  col.onSnapshot(snap=>{
+  unsub = col.onSnapshot(snap=>{
     const next={}; snap.docs.forEach(d=>{ if(d.exists) next[d.id]=d.data(); });
     for(const k in dirty){ if(docs[k]===undefined) delete next[k]; else next[k]=docs[k]; }
     docs = next;
     if(!snap.metadata.fromCache && mode==='connecting'){ mode='db'; slowNote=false; clearTimeout(timer); Object.keys(dirty).forEach(flush); }
     render();
-  }, err=>{ clearTimeout(timer); slowNote=false; goLocal(); });
+  }, err=>{ clearTimeout(timer); slowNote=false; if(mode==='db') switchToLocal(); else goLocal(err&&err.code==='revoked'?'readonly':'signedout'); });
 }
 
 /* ============ Data model ============ */
@@ -453,7 +469,7 @@ function renderRail(){
   if(!mods.length) h += `<p class="muted small" style="padding:6px 10px">No modules yet.</p>`;
   h += `</div>`;
   const st = saveError ? ['warn', saveError] : mode==='db' ? ['ok','Saved to your Claude account. Opens with your progress on any device.'] :
-    mode==='local' ? ['warn','Saved in this browser only. Sign in to claude.ai to keep it with your account.'] :
+    mode==='local' ? ['warn', localReason==='readonly' ? 'This shared copy can\'t save to your Claude account, so your work is saved in this browser only. It won\'t follow you to other devices.' : 'Saved in this browser only. Sign in to claude.ai to keep it with your account.'] :
     [slowNote?'warn':'', slowNote?'Can\'t reach your saved data yet. Changes will save when it connects.':'Connecting to your saved data…'];
   h += `<div class="railfoot"><i class="${st[0]}"></i><span>${esc(st[1])}</span></div>`;
   r.innerHTML = h; r.classList.toggle('open', ui.menu);
