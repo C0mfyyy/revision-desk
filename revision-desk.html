@@ -1,0 +1,1465 @@
+<title>Revision Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Schibsted+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: app shell. Left rail = modules → tests tree; right = dashboard / module / test workspace. Rail becomes a drawer on phones. */
+:root{
+  --bg:#f2f4f9; --surface:#ffffff; --sunk:#e8ecf4; --ink:#141a2e; --muted:#58617d; --line:#d7ddea;
+  --accent:#2343c8; --accent-ink:#ffffff; --accent-soft:#e2e7fb;
+  --mark:#ffe36e; --mark-ink:#2e2600;
+  --good:#1b7a48; --good-bg:#e0f3e7; --bad:#b4322c; --bad-bg:#fbe5e3; --warn:#9a5600;
+  --c1:#2343c8; --c2:#8a3fb8; --c3:#b0601a; --c4:#1b7a48; --c5:#c23b6b; --c6:#0f7f8c;
+  --display:'Schibsted Grotesk','Segoe UI',system-ui,sans-serif;
+  --body:'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif;
+  --shadow:0 1px 2px rgba(20,26,46,.06),0 4px 14px rgba(20,26,46,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c0f1d; --surface:#151a2d; --sunk:#1d2339; --ink:#e8ebf6; --muted:#9ba4c2; --line:#2a3150;
+    --accent:#8fa2ff; --accent-ink:#0b1030; --accent-soft:#232c55;
+    --mark:#e6cf55; --mark-ink:#241e00;
+    --good:#5fd394; --good-bg:#12301f; --bad:#f2908a; --bad-bg:#3a1a1a; --warn:#f0b35f;
+    --c1:#8fa2ff; --c2:#c99af0; --c3:#f0a660; --c4:#5fd394; --c5:#f28bb0; --c6:#5fd0dc;
+    --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c0f1d; --surface:#151a2d; --sunk:#1d2339; --ink:#e8ebf6; --muted:#9ba4c2; --line:#2a3150;
+  --accent:#8fa2ff; --accent-ink:#0b1030; --accent-soft:#232c55;
+  --mark:#e6cf55; --mark-ink:#241e00;
+  --good:#5fd394; --good-bg:#12301f; --bad:#f2908a; --bad-bg:#3a1a1a; --warn:#f0b35f;
+  --c1:#8fa2ff; --c2:#c99af0; --c3:#f0a660; --c4:#5fd394; --c5:#f28bb0; --c6:#5fd0dc;
+  --shadow:0 1px 2px rgba(0,0,0,.3); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.55}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15;letter-spacing:-.01em}
+p{margin:0}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.shell{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--surface);border-right:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto;display:flex;flex-direction:column;padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:14px}
+.brand{display:flex;align-items:center;gap:10px;background:none;border:0;padding:4px 6px;text-align:left}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:1rem;position:relative;overflow:hidden}
+.brand .logo::after{content:"";position:absolute;left:5px;right:5px;bottom:9px;height:7px;background:var(--mark);opacity:.9;mix-blend-mode:normal;z-index:0}
+.brand .logo span{position:relative;z-index:1;color:var(--bg)}
+.brand b{font-family:var(--display);font-size:1.12rem;display:block;line-height:1.1}
+.brand small{color:var(--muted);font-size:.8rem}
+.navlink{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:9px;padding:9px 10px;text-align:left;font-weight:700;color:var(--muted)}
+.navlink:hover{background:var(--sunk);color:var(--ink)}
+.navlink[aria-current="true"]{background:var(--accent-soft);color:var(--ink)}
+.railhead{font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:22px 10px 6px;display:flex;justify-content:space-between;align-items:center}
+.railhead button{background:none;border:0;color:var(--accent);font-weight:700;font-size:.78rem;letter-spacing:0;text-transform:none;padding:2px 4px}
+.tree{display:flex;flex-direction:column;gap:2px}
+.tmod{font-weight:700}
+.tmod .dot{width:10px;height:10px;border-radius:3px;background:var(--mc);flex:none}
+.ttest{padding-left:30px;font-weight:400;font-size:.94rem;justify-content:space-between}
+.ttest .when{font-size:.75rem;color:var(--muted);white-space:nowrap}
+.railfoot{margin-top:auto;padding:14px 10px 0;font-size:.8rem;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+.railfoot i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;margin-top:6px}
+.railfoot i.ok{background:var(--good)} .railfoot i.warn{background:var(--warn)}
+
+.main{min-width:0;padding-block:22px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.topbar{display:none}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+.label{font-size:.74rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hl{background:linear-gradient(transparent 58%,var(--mark) 58%,var(--mark) 92%,transparent 92%);padding:0 2px}
+.crumbs{display:flex;gap:6px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+.crumbs button{background:none;border:0;padding:0;color:var(--accent);font-weight:700}
+.pagehead{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-end}
+.pagehead h1{font-size:clamp(1.6rem,3.4vw,2.25rem);font-weight:800}
+
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:10px;padding:10px 16px;font-weight:700;line-height:1.2}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--accent);filter:none}
+.btn.quiet{background:none;border-color:transparent;color:var(--accent);padding-inline:8px}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.sm{padding:6px 11px;font-size:.88rem;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 13px;font-weight:700;font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:700;border-radius:6px;padding:2px 8px;background:color-mix(in srgb,var(--tc,var(--muted)) 13%,transparent);color:var(--tc,var(--muted));max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700;border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:var(--surface);white-space:nowrap}
+.pill.soon{background:var(--mark);color:var(--mark-ink);border-color:var(--mark)}
+.pill.past{color:var(--muted)}
+.progress{height:7px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;background:var(--pc,var(--accent));border-radius:99px;transition:width .3s}
+
+.ring{--p:0;--rc:var(--accent);width:var(--sz,84px);height:var(--sz,84px);border-radius:50%;background:conic-gradient(var(--rc) calc(var(--p)*1%),var(--sunk) 0);display:grid;place-items:center;flex:none}
+.ring>span{width:calc(100% - 14px);height:calc(100% - 14px);border-radius:50%;background:var(--surface);display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:calc(var(--sz,84px)*.25)}
+
+/* dashboard */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:22px;align-items:center;background:var(--ink);color:var(--bg);border:0;border-radius:18px;padding:26px}
+.hero .label{color:color-mix(in srgb,var(--bg) 70%,transparent)}
+.hero h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:800;margin-top:6px}
+.hero .sub{color:color-mix(in srgb,var(--bg) 75%,transparent);margin-top:4px}
+.hero .big{font-family:var(--display);font-weight:800;font-size:clamp(2.6rem,6vw,3.6rem);line-height:1}
+.hero .big em{font-style:normal;background:linear-gradient(transparent 60%,var(--mark) 60%,var(--mark) 90%,transparent 90%);color:var(--bg)}
+.hero .ring{--rc:var(--mark)} .hero .ring>span{background:var(--ink);color:var(--bg)}
+.hero .btn.ghost{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 35%,transparent)}
+.hero .btn{background:var(--mark);color:var(--mark-ink);border-color:var(--mark)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat b{display:block;font-family:var(--display);font-size:1.7rem;font-weight:800;line-height:1.1;margin-top:4px}
+.stat span{font-size:.85rem;color:var(--muted)}
+.modgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.modcard{display:flex;flex-direction:column;gap:12px;border-top:5px solid var(--mc)}
+.modcard h3{font-size:1.2rem}
+.tline{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;background:var(--sunk);border:0;border-radius:10px;padding:10px 12px;text-align:left;width:100%}
+.tline:hover{outline:2px solid var(--accent);outline-offset:-2px}
+.tline .progress{grid-column:1/-1;background:color-mix(in srgb,var(--surface) 70%,var(--sunk))}
+.addcard{border:2px dashed var(--line);background:transparent;box-shadow:none;display:grid;place-items:center;text-align:center;min-height:160px;color:var(--muted);font-weight:700}
+.addcard:hover{border-color:var(--accent);color:var(--accent)}
+.activity{display:flex;flex-direction:column}
+.act{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.act:first-child{border-top:0}
+.act .sc{font-family:var(--display);font-weight:800}
+.badge{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:.8rem;font-family:var(--display)}
+
+/* test workspace */
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
+.tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;font-weight:700;color:var(--muted);margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button .n{font-size:.75rem;background:var(--sunk);border-radius:99px;padding:1px 7px;margin-left:4px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.launch{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+.launch:hover{border-color:var(--accent)}
+.launch b{font-family:var(--display);font-size:1.05rem}
+.launch span{color:var(--muted);font-size:.9rem}
+.bars{display:flex;flex-direction:column;gap:12px}
+.bar{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr) 48px;gap:12px;align-items:center;font-size:.92rem}
+.bar .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .track{height:10px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.bar .track i{display:block;height:100%;background:var(--tc,var(--accent))}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+
+.lessonlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.lesson{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--tc);border-radius:12px;padding:12px 14px}
+.lesson:hover{border-color:var(--tc)}
+.lesson .ck{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:.72rem;color:#fff;margin-top:2px}
+.lesson.done .ck{background:var(--good);border-color:var(--good)}
+.lesson b{display:block}
+.lesson span{font-size:.86rem;color:var(--muted)}
+.subtabs{display:inline-flex;background:var(--sunk);border-radius:10px;padding:4px;gap:4px}
+.subtabs button{background:none;border:0;border-radius:7px;padding:7px 14px;font-weight:700;color:var(--muted)}
+.subtabs button[aria-current="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.point{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.point h3{font-size:1.04rem;margin-bottom:4px}
+.point ul{margin:6px 0 0;padding-left:20px}
+.recall .point .body{filter:blur(7px);user-select:none;cursor:pointer;transition:filter .2s}
+.recall .point.open .body{filter:none;user-select:auto}
+.recall .point:not(.open)::after{content:'Tap to reveal';display:block;font-size:.8rem;color:var(--muted);margin-top:6px}
+.switch{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700}
+.switch[aria-pressed="true"]{background:var(--tc);color:#fff;border-color:var(--tc)}
+.vis{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.steps{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
+.step{border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;font-weight:700;font-size:.93rem;display:flex;gap:8px;align-items:center;text-align:left}
+.step i{font-style:normal;width:22px;height:22px;border-radius:50%;background:var(--sunk);display:grid;place-items:center;font-size:.75rem;flex:none}
+.step[aria-pressed="true"]{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 12%,var(--surface))}
+.step[aria-pressed="true"] i{background:var(--tc);color:#fff}
+.stepdesc{border-left:4px solid var(--tc);background:color-mix(in srgb,var(--tc) 8%,var(--surface));padding:12px 14px;border-radius:0 8px 8px 0}
+
+.fcwrap{display:flex;flex-direction:column;align-items:center;gap:16px}
+.flip{width:100%;max-width:560px;min-height:240px;perspective:1100px;background:none;border:0;padding:0}
+.flip .in{position:relative;width:100%;min-height:240px;transition:transform .45s;transform-style:preserve-3d}
+.flip.on .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:1.5px solid var(--line);border-radius:16px;background:var(--surface);padding:26px 22px 22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;font-size:1.15rem;overflow:auto;box-shadow:var(--shadow);background-image:repeating-linear-gradient(transparent 0 31px,color-mix(in srgb,var(--line) 55%,transparent) 31px 32px)}
+.face.back{transform:rotateY(180deg);border-color:var(--tc,var(--accent));background:color-mix(in srgb,var(--tc,var(--accent)) 8%,var(--surface));font-size:1.03rem}
+.face small{position:absolute;top:10px;left:14px;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+
+.qtext{font-family:var(--display);font-size:1.28rem;font-weight:700;line-height:1.35;margin:10px 0 18px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:11px;padding:12px 14px}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt .k{flex:none;width:27px;height:27px;border-radius:7px;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--muted)}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.ok{border-color:var(--good);background:var(--good-bg)} .opt.ok .k{background:var(--good);border-color:var(--good);color:#fff}
+.opt.no{border-color:var(--bad);background:var(--bad-bg)} .opt.no .k{background:var(--bad);border-color:var(--bad);color:#fff}
+.opt:disabled{cursor:default}
+.note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 9px 9px 0}
+.verdict{font-weight:700}.verdict.ok{color:var(--good)}.verdict.no{color:var(--bad)}
+.bigscore{font-family:var(--display);font-size:3rem;font-weight:800;line-height:1}
+.miss{border-top:1px solid var(--line);padding:14px 0}
+.miss:first-of-type{border-top:0}
+.pts{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:8px}
+.pts label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.pts input{margin-top:4px;width:18px;height:18px;accent-color:var(--accent);flex:none}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.9rem;min-width:0}
+label.f .hint{font-weight:400;color:var(--muted);font-size:.82rem}
+input[type=text],input[type=date],input[type=number],textarea,select{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-weight:400}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);outline:none}
+textarea{min-height:110px;resize:vertical}
+.optrow{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center}
+.optrow input[type=radio]{width:18px;height:18px;accent-color:var(--good)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.items{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .t{overflow-wrap:anywhere}
+details.card>summary{cursor:pointer;font-weight:700;font-family:var(--display);font-size:1.05rem;list-style:none;display:flex;justify-content:space-between;gap:10px}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"+";color:var(--muted);font-weight:400}
+details.card[open]>summary::after{content:"−"}
+details.card[open]>summary{margin-bottom:12px}
+pre.code{background:var(--sunk);border-radius:10px;padding:12px;overflow-x:auto;font-size:.8rem;margin:0;white-space:pre}
+.empty{text-align:center;padding:34px 20px;color:var(--muted)}
+.empty h3{color:var(--ink);margin-bottom:6px}
+.banner{border-radius:12px;padding:12px 16px;background:var(--mark);color:var(--mark-ink);font-weight:700}
+
+.modal{position:fixed;inset:0;background:color-mix(in srgb,#05070f 55%,transparent);display:grid;place-items:center;z-index:50;padding-block:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.modal .card{width:100%;max-width:520px;max-height:100%;overflow:auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 16px;font-weight:700;z-index:60;box-shadow:var(--shadow)}
+
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{display:none;position:fixed;inset:0 auto 0 0;width:min(300px,86vw);z-index:40;height:100%;box-shadow:0 0 40px rgba(0,0,0,.25);padding-top:calc(18px + env(safe-area-inset-top,0px))}
+  .rail.open{display:flex}
+  .scrim{position:fixed;inset:0;background:rgba(5,7,15,.4);z-index:39}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid3{grid-template-columns:1fr 1fr}
+}
+@media (max-width:600px){
+  .hero{grid-template-columns:1fr}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .bar{grid-template-columns:minmax(0,1fr) 44px}.bar .track{grid-column:1/-1;grid-row:2}
+  .bigscore{font-size:2.5rem}
+  .modgrid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Modules and tests"></nav>
+  <main class="main"><div class="wrap" id="main"></div></main>
+</div>
+<div id="overlay"></div>
+
+<script>
+const GEIT_PARTS = [
+
+/* ===== TOPIC 1 ===== */
+{id:'1a',t:1,title:'What is governance?',blurb:'The definition, four pillars and three levels of governance.',
+ points:[
+  {h:'IT governance',b:'The system by which the use of IT in an organisation is <b>directed and controlled</b>, ensuring alignment with business strategy, management of risk and delivery of value.'},
+  {h:'Why it matters',b:'It gives <b>structure</b>: risk management, accountability, compliance and trust, and value creation. Without governance, technology growth outpaces our ability to manage its risks.'},
+  {h:'Three levels of governance',b:'<ul><li><b>Corporate governance</b> manages the whole corporation: run the company to achieve its mission and vision for stakeholders.</li><li><b>IT governance</b> manages the role of IT: achieve business objectives most efficiently and maximise benefits.</li><li><b>AI governance</b> manages AI within IT governance: effective controls that create value.</li></ul>Each model is independent, with different emphasis but similar objectives.'},
+  {h:'How important is IT governance?',b:'Failure can mean business disruption or worse. In mild cases, no governance means wastage and lost opportunities. A lack of IT governance <b>does not necessarily</b> mean business failure. Digitalisation keeps raising its importance.'}
+ ],
+ vis:{title:'The four pillars of IT governance (tap each)',items:[
+  ['Strategic Management','Align IT with the business strategy.'],
+  ['Benefits Realization','Make sure IT investments deliver the promised business value.'],
+  ['Risk Optimization','Identify, assess and mitigate IT risks before they become crises.'],
+  ['Resource Optimization','Use IT resources (people, money, assets) well.']]},
+ cards:[
+  ['Define IT governance','The system by which the use of IT is directed and controlled, ensuring alignment with business strategy, risk management and value delivery.'],
+  ['The four pillars of IT governance','Strategic Management, Benefits Realization, Risk Optimization, Resource Optimization.'],
+  ['Corporate governance focuses on...','Managing the whole corporation to achieve its mission and vision in line with stakeholders\' needs.'],
+  ['IT governance focuses on...','Managing the role of IT in a corporation to achieve business objectives efficiently and maximise benefits.'],
+  ['AI governance focuses on...','Managing AI within IT governance through effective controls that create value.'],
+  ['Does lack of IT governance always mean business failure?','No. It may mean wastage and lost opportunities; it does not necessarily mean failure.']],
+ check:[
+  {q:'Which is NOT one of the four pillars of IT governance?',o:['Strategic Management','Benefits Realization','Risk Optimization','Compliance Auditing'],a:3,e:'The pillars are Strategic Management, Benefits Realization, Risk Optimization and Resource Optimization.'},
+  {q:'AI governance is best described as managing:',o:['The whole corporation','AI within IT governance through effective controls','Only AI suppliers','Corporate finances'],a:1,e:'Corporate governance covers the whole corporation, IT governance the role of IT, AI governance AI within IT governance.'},
+  {q:'According to the slides, a lack of IT governance:',o:['Always causes business failure','May cause wastage and lost opportunities but not necessarily failure','Has no effect','Is only a problem for listed companies'],a:1,e:'Watch for absolute words such as always.'}]},
+
+{id:'1b',t:1,title:'Corporate governance',blurb:'The MAS Code, Enron, and the six OECD principles.',
+ points:[
+  {h:'Code of Corporate Governance',b:'Published by the <b>Monetary Authority of Singapore (MAS)</b> for publicly-listed companies. It describes board composition and functions and provides accountability, transparency and confidence for publicly traded companies.'},
+  {h:'What the Code emphasises',b:'<ul><li>Board composition and independence (separate Chairman and CEO where possible)</li><li>Accountability and transparency</li><li>Remuneration practices (fair, transparent, linked to performance)</li><li>Shareholder rights</li><li>Culture and ethics</li></ul>'},
+  {h:'Role of corporate governance',b:'Public companies are run by senior management on behalf of shareholders. Governance stops management benefiting themselves at the expense of the public good (<b>Enron, 2001</b>). The board is appointed to ensure accountability and define objectives. For private companies it serves the owners; for government agencies it ensures the government\'s objectives are met.'},
+  {h:'The need for governance',b:'To make sure the enterprise does the <b>right thing</b>: achieve its owners\' aims while keeping stakeholders\' interests intact. Key questions: what is the right thing, who are the owners and stakeholders, and how do we ensure it is done.'}
+ ],
+ vis:{title:'The six OECD principles (tap each)',items:[
+  ['I Framework','Basis for an effective framework: transparent and efficient markets, rule of law, clear division of responsibilities.'],
+  ['II Shareholder rights','Protect and facilitate the exercise of shareholders\' rights and key ownership functions.'],
+  ['III Equitable treatment','All shareholders treated equitably, including minority and foreign shareholders, with redress for violations.'],
+  ['IV Stakeholders','Recognise stakeholder rights and encourage co-operation in creating wealth, jobs and sustainable enterprises.'],
+  ['V Disclosure','Timely and accurate disclosure on all material matters: finances, performance, ownership, governance.'],
+  ['VI Board','Strategic guidance, effective monitoring of management, and board accountability to the company and shareholders.']]},
+ cards:[
+  ['Who publishes the Code of Corporate Governance in Singapore?','The Monetary Authority of Singapore (MAS), for publicly-listed companies.'],
+  ['Name the five emphases of the Code','Board composition and independence; accountability and transparency; remuneration; shareholder rights; culture and ethics.'],
+  ['Which scandal illustrates why governance is needed?','Enron (2001): management acted for their own benefit at the expense of the public.'],
+  ['What is the "right thing" for an enterprise?','Achieve the aims of its owners while keeping stakeholders\' interests intact.'],
+  ['How many OECD principles are there?','Six: framework; shareholder rights; equitable treatment; stakeholders; disclosure and transparency; board responsibilities.'],
+  ['Who ensures accountability and defines objectives?','The board of directors.']],
+ check:[
+  {q:'Who publishes the Code of Corporate Governance for listed companies in Singapore?',o:['OECD','ISACA','Monetary Authority of Singapore','IFAC'],a:2,e:'MAS publishes the Code.'},
+  {q:'The Enron scandal (2001) illustrates the need to stop:',o:['Hackers stealing data','Management acting for their own benefit at the expense of the public good','AI bias','Data centre energy use'],a:1,e:'Governance keeps management accountable to shareholders and the public.'},
+  {q:'How many OECD corporate governance principles are covered?',o:['4','5','6','7'],a:2,e:'Six.'}]},
+
+{id:'1c',t:1,title:'Responsible AI',blurb:'Six principles, the risks of ungoverned AI, and trustworthy AI.',
+ points:[
+  {h:'Why governance can\'t wait',b:'AI decisions affect jobs, health, credit and criminal justice. Without governance AI can perpetuate bias, erode privacy and operate without accountability.'},
+  {h:'Risks of ungoverned AI',b:'<ul><li><b>Algorithmic bias</b> (facial recognition, hiring AI)</li><li><b>Privacy violations</b> (training on personal data, mass surveillance)</li><li><b>Deepfakes and misinformation</b></li><li><b>Autonomous system failures</b> (self-driving accidents, trading flash crashes)</li><li><b>Job displacement</b></li><li><b>Concentration of power</b> in a few companies</li></ul>'},
+  {h:'Lessons from past technology cycles',b:'The Internet was deployed before privacy and content rules. Social media prioritised engagement over wellbeing. In genetic engineering the <b>Asilomar Conference (1975)</b> paused research to set safety norms, a model of proactive governance. "Move fast and break things" is not acceptable for AI.'},
+  {h:'Building trustworthy AI',b:'AI ethics policy, explainability tools, diverse training data, bias testing and auditing, human-in-the-loop review, and an incident response plan.'}
+ ],
+ vis:{title:'The six Responsible AI principles (tap each)',items:[
+  ['Fairness','Treat everyone equitably; do not perpetuate or amplify discrimination.'],
+  ['Transparency','How AI works and decides must be explainable and understandable.'],
+  ['Privacy & Security','Respect data privacy and consent; protect against misuse and cyber threats.'],
+  ['Human Oversight','Humans stay in control of consequential decisions; systems must be correctable.'],
+  ['Accountability','Clear lines of responsibility for AI outcomes and harms.'],
+  ['Safety & Reliability','Perform as intended, be robust to adversarial inputs, and fail safely.']]},
+ cards:[
+  ['Six Responsible AI principles','Fairness, Transparency, Privacy & Security, Human Oversight, Accountability, Safety & Reliability.'],
+  ['Which principle: humans must stay in control and systems must be correctable?','Human Oversight.'],
+  ['Which principle: AI must be explainable and understandable?','Transparency.'],
+  ['What was the Asilomar Conference (1975)?','Genetic engineering research was paused to set safety norms: a model of proactive governance.'],
+  ['Six risks of ungoverned AI','Bias, privacy violations, deepfakes/misinformation, autonomous system failures, job displacement, concentration of power.'],
+  ['Practical steps for trustworthy AI','AI ethics policy, explainability tools, diverse training data, bias testing and auditing, human-in-the-loop review, incident response plan.']],
+ check:[
+  {q:'A hiring AI systematically disadvantages women. Which principle is most directly breached?',o:['Fairness','Safety & Reliability','Privacy & Security','Human Oversight'],a:0,e:'Fairness: treat individuals equitably and do not amplify discrimination.'},
+  {q:'Which principle says humans must remain in control of consequential AI decisions?',o:['Transparency','Accountability','Human Oversight','Safety & Reliability'],a:2,e:'Human Oversight.'},
+  {q:'The Asilomar Conference (1975) is a model of proactive governance in which field?',o:['The Internet','Social media','Genetic engineering','Cloud computing'],a:2,e:'Genetic engineering researchers paused work to set safety norms.'}]},
+
+{id:'1d',t:1,title:'Sustainability & Green IT',blurb:'Three pillars, ESG, Green IT, and AI\'s two-sided impact.',
+ points:[
+  {h:'The paradox',b:'Technology is both our greatest tool for environmental problems (smart grids, precision agriculture) and one of the fastest-growing sources of harm. <b>Governance</b> decides which path we take. Data centres use 2 to 3% of global electricity, ICT is about 4% of global CO2, and over 50 million tonnes of e-waste are generated yearly.'},
+  {h:'Three pillars of sustainability',b:'<ul><li><b>Environmental</b>: carbon footprint, energy efficiency, e-waste, green data centres</li><li><b>Social</b>: digital inclusion, fair labour, privacy and human rights, workforce transition</li><li><b>Economic</b>: long-term value, circular economy, sustainable business models</li></ul>'},
+  {h:'ESG',b:'<b>Environmental, Social, Governance</b>: a framework investors and regulators use to evaluate organisations. For tech companies it is shifting from <b>voluntary to mandatory disclosure</b>. It drives access to capital, compliance, reputation and talent.'},
+  {h:'Green IT strategies',b:'Data centre efficiency (<b>PUE</b>, Power Usage Effectiveness), circular economy (refurbish, recycle), renewable energy (PPAs), cloud optimisation, carbon accounting (Scope 1, 2, 3), sustainable software engineering.'},
+  {h:'AI and sustainability',b:'<b>Costs:</b> training energy, cooling water, rapid hardware refresh and rare earths, continuous inference demand. <b>Benefits:</b> optimised grids, precision agriculture, materials and carbon-capture research, predictive maintenance.'},
+  {h:'Who is responsible?',b:'Board and executives set direction; IT leadership (CIO/CISO/CTO) implements frameworks; data scientists build responsibly; legal and compliance manage regulation; employees follow policy and report violations; governments and regulators set frameworks. Emerging: agentic AI, quantum computing, digital sovereignty, climate tech urgency.'}
+ ],
+ vis:{title:'ESG in technology (tap each)',items:[
+  ['E: Environmental','Scope 1/2/3 emissions, renewable energy targets, water use, e-waste.'],
+  ['S: Social','Diversity and inclusion, employee wellbeing, community impact, supply chain ethics.'],
+  ['G: Governance','Board diversity, executive pay, anti-corruption, data privacy, tax transparency.']]},
+ cards:[
+  ['Three pillars of sustainability','Environmental, Social, Economic.'],
+  ['What does ESG stand for?','Environmental, Social, Governance.'],
+  ['PUE stands for...','Power Usage Effectiveness: a measure of data centre energy efficiency.'],
+  ['ESG disclosure for tech companies is moving from...','Voluntary reporting to mandatory disclosure.'],
+  ['What is carbon accounting?','Measuring and reporting Scope 1, 2 and 3 emissions across the IT value chain.'],
+  ['Name two environmental costs of AI','Training energy and data centre cooling water (also hardware refresh and inference demand).']],
+ check:[
+  {q:'The three pillars of sustainability in technology governance are:',o:['Environmental, Social, Economic','Energy, Safety, Efficiency','People, Process, Technology','Risk, Value, Resource'],a:0,e:'Not to be confused with ESG, where the G is Governance.'},
+  {q:'In Green IT, PUE stands for:',o:['Power Usage Effectiveness','Programmable Utility Engine','Public Utility Emissions','Predictive Usage Estimate'],a:0,e:'PUE measures data centre energy efficiency.'},
+  {q:'ESG reporting for technology companies is shifting:',o:['From voluntary to mandatory','From mandatory to voluntary','Only for banks','Away from emissions'],a:0,e:'It now drives access to capital, compliance, reputation and talent.'}]},
+
+/* ===== TOPIC 2 ===== */
+{id:'2a',t:2,title:'Enterprise governance',blurb:'Players, the ISACA definition, conformance vs performance, key assets.',
+ points:[
+  {h:'The players',b:'<ul><li><b>Board of Directors:</b> sets the overall direction; accountable to shareholders.</li><li><b>CEO and executive management</b> (CFO, CIO, COO...): execute operations based on the board\'s direction.</li><li><b>Employees:</b> do the actual work and answer to executive management.</li></ul>'},
+  {h:'Enterprise governance (ISACA)',b:'A set of responsibilities and practices exercised by the <b>board and executive management</b> to: provide strategic direction, ensure objectives are achieved, ascertain that risks are managed appropriately, and verify that resources are used responsibly.'},
+  {h:'Conformance and performance (IFAC, Oct 2003)',b:'<b>Conformance</b> (corporate governance): corporate structure, roles, executive remuneration; gives accountability and assurance. <b>Performance</b> (business governance): strategy and value creation, managing risk appetite; gives value creation and resource utilisation.'},
+  {h:'Six key assets (Weill & Ross, 2004)',b:'Human, Financial, Physical, IP, Information & IT, Relationship assets. Financial governance practices cover financial assets; IT governance practices cover information and IT assets.'}
+ ],
+ vis:{title:'The six key assets (tap each)',items:[
+  ['Human','People and their skills.'],['Financial','Money and financial resources.'],['Physical','Buildings, equipment, facilities.'],
+  ['IP','Intellectual property.'],['Information & IT','Data and technology (IT governance practices).'],['Relationship','Relationships with customers, partners, suppliers.']]},
+ cards:[
+  ['ISACA\'s definition of enterprise governance (four goals)','Provide strategic direction; ensure objectives are achieved; manage risks appropriately; use resources responsibly.'],
+  ['Conformance covers...','Corporate structure, roles, executive remuneration; leads to accountability and assurance.'],
+  ['Performance covers...','Strategy, value creation, managing risk appetite; leads to value creation and resource utilisation.'],
+  ['Which body described conformance and performance?','IFAC (International Federation of Accountants), October 2003.'],
+  ['The six key assets','Human, financial, physical, IP, information & IT, relationship.'],
+  ['Who is accountable to the shareholders?','The board of directors.']],
+ check:[
+  {q:'According to IFAC (2003), which dimension focuses on strategy and value creation?',o:['Conformance','Performance','Compliance','Assurance'],a:1,e:'Performance = strategy, value creation, risk appetite.'},
+  {q:'The definition of enterprise governance in the slides comes from:',o:['ISACA','IFAC','MAS','OECD'],a:0,e:'ISACA defines it; IFAC gives the two dimensions; Weill and Ross give the assets.'},
+  {q:'Which is NOT one of the six key assets?',o:['IP assets','Relationship assets','Human assets','Marketing assets'],a:3,e:'The six: human, financial, physical, IP, information & IT, relationship.'}]},
+
+{id:'2b',t:2,title:'GEIT frameworks',blurb:'Governance vs management frameworks, and why COBIT leads.',
+ points:[
+  {h:'Two groups of frameworks',b:'Frameworks hold best practice to guide implementation. Those for the <b>governance</b> of enterprise IT are <b>COBIT</b> and <b>ISO 38500</b>. Those for the <b>management</b> of enterprise IT are CMMI, ISO 27001, ISO 9000, ISO/IEC 20000, ISO 31000:2009, TOGAF, M_o_R and ITIL.'},
+  {h:'COBIT is the umbrella',b:'COBIT aligns with the other standards at a high level, so it can be the <b>overarching framework</b> for the governance and management of enterprise IT.'},
+  {h:'Why frameworks matter',b:'They are the experts\' collected wisdom, minimise mis-spent resources, and are constantly revised. The absence of a framework does <b>not</b> mean everyone fails, only that success is not optimal.'}
+ ],
+ vis:{title:'What each management standard is for (tap each)',items:[
+  ['CMMI','Capability Maturity Model Integration.'],['ISO 27001','Information security.'],['ISO 9000','Quality management.'],
+  ['ISO/IEC 20000','IT service management.'],['ISO 31000','Risk management.'],['TOGAF','The Open Group Architecture Framework.'],
+  ['M_o_R','Management of Risk.'],['ITIL','IT Infrastructure Library.']]},
+ cards:[
+  ['Two frameworks for the governance of enterprise IT','COBIT (ISACA) and ISO 38500.'],
+  ['ISO 27001 is the standard for...','Information security.'],
+  ['ISO 9000 is the standard for...','Quality management.'],
+  ['ISO/IEC 20000 is the standard for...','IT service management.'],
+  ['ISO 31000:2009 is the standard for...','Risk management.'],
+  ['Why can COBIT be the overarching framework?','It aligns at a high level with the other relevant standards and frameworks.']],
+ check:[
+  {q:'Which pair are both frameworks for the GOVERNANCE of enterprise IT?',o:['COBIT and ISO 38500','ITIL and CMMI','TOGAF and ISO 27001','COBIT and ITIL'],a:0,e:'ITIL, CMMI, TOGAF and ISO 27001 are management frameworks.'},
+  {q:'ISO 27001 is the standard for:',o:['Quality management','IT service management','Information security','Risk management'],a:2,e:'ISO 9000 = quality, ISO/IEC 20000 = IT service management, ISO 31000 = risk.'},
+  {q:'Without an IT governance framework:',o:['Everyone will fail','The rate of success will not be optimal','IT is illegal','Nothing is affected'],a:1,e:'Frameworks improve the odds; they are not a prerequisite for survival.'}]},
+
+{id:'2c',t:2,title:'Pain points & trigger events',blurb:'What creates the need for IT governance.',
+ points:[
+  {h:'Business drivers',b:'Business drivers constitute the need for IT governance. Pain points or trigger events make an organisation realise it needs improvement. IT governance starts immediate action to mitigate the pain and builds a platform for future improvement.'},
+  {h:'Pain points (ongoing problems)',b:'<ul><li>Failed initiatives, rising IT costs, low business value</li><li>IT incidents (data loss, project failure)</li><li>Outsourcing service levels not met</li><li>Failure to meet regulatory requirements</li><li>IT limiting innovation and agility</li><li>Regular audit findings of poor IT performance</li><li>Hidden IT spending; duplicated initiatives</li><li>Insufficient or unskilled IT staff</li><li>IT changes late or over budget</li><li>Management reluctant to engage with IT; complex decentralised operating models</li></ul>'},
+  {h:'Trigger events (things that happen)',b:'<ul><li>Merger, acquisition or divestiture</li><li>Shift in market or competition</li><li>New regulatory or compliance requirements</li><li>Enterprise-wide governance project</li><li>New CIO, CFO, CEO or board member</li><li>External audit or consultant assessment</li><li>A new business strategy; desire to improve value from IT</li></ul>'},
+  {h:'Getting buy-in',b:'Engaging a <b>third party</b> for a review may increase buy-in. GEIT success depends on participation of everyone in the enterprise.'}
+ ],
+ cards:[
+  ['Pain point or trigger? Rising IT costs','Pain point.'],
+  ['Pain point or trigger? A merger','Trigger event.'],
+  ['Pain point or trigger? New CIO appointed','Trigger event.'],
+  ['Pain point or trigger? Hidden IT spending','Pain point.'],
+  ['Pain point or trigger? New regulatory requirements','Trigger event (failing to meet them is a pain point).'],
+  ['How can an organisation increase buy-in for GEIT?','Engage a third party to review; get participation of everyone in the enterprise.']],
+ check:[
+  {q:'A newly appointed CEO prompts the company to start a GEIT initiative. This is a:',o:['Pain point','Trigger event','Barrier','Enabler'],a:1,e:'New CIO/CFO/CEO/board members are trigger events.'},
+  {q:'Which is a pain point?',o:['A merger','Hidden IT spending','A new CEO','A new business strategy'],a:1,e:'Hidden IT spending is an ongoing problem, so a pain point.'},
+  {q:'What may increase buy-in for GEIT initiatives?',o:['Engaging a third-party review','Keeping them secret','Only IT staff taking part','Avoiding audits'],a:0,e:'Success depends on everyone participating, and an independent review helps.'}]},
+
+{id:'2d',t:2,title:'COBIT components & IT strategy tools',blurb:'The 7 components, SWOT and the BCG matrix.',
+ points:[
+  {h:'Components',b:'Components interact to support a comprehensive governance and management system. They are anything that helps achieve enterprise objectives (frameworks, principles, structures, processes, practices). The key is a <b>holistic approach</b> to how they interact. COBIT identifies <b>7</b>.'},
+  {h:'IT strategy',b:'IT strategy must align with the enterprise\'s mission, vision and values. Two techniques to identify it: <b>SWOT</b> and the <b>BCG matrix</b>.'},
+  {h:'SWOT',b:'<b>S</b>trengths (keep developing), <b>W</b>eaknesses (mitigate), <b>O</b>pportunities (develop into future strengths), <b>T</b>hreats (address before they become serious).'}
+ ],
+ vis:{title:'The 7 COBIT components (tap each)',items:[
+  ['Principles, policies, frameworks','The rules and guidance that direct behaviour.'],
+  ['Processes','Organised sets of practices and activities.'],
+  ['Organizational structures','Decision-making bodies and roles.'],
+  ['Culture, ethics, behaviour','Of individuals and of the enterprise.'],
+  ['Information','Data produced and used by the enterprise.'],
+  ['Services, infrastructure, applications','The technology and capabilities that provide IT processing.'],
+  ['People, skills, competencies','The people needed to run and govern.']]},
+ vis2:{title:'BCG matrix (tap each)',items:[
+  ['Star','Generates a lot of returns and the most benefit, but requires large cash flows. Maintain or develop it into a cash cow.'],
+  ['Cash cow','Takes few resources now but produces a lot of returns. The best area to be in.'],
+  ['Question mark','Not generating much benefit yet, but has potential to become a cash cow with enough investment.'],
+  ['Dog','Does not take up many resources, but does not generate many benefits either.']]},
+ cards:[
+  ['How many COBIT components are there?','Seven.'],
+  ['List the 7 COBIT components','Principles/policies/frameworks; processes; organisational structures; culture, ethics, behaviour; information; services, infrastructure, applications; people, skills, competencies.'],
+  ['SWOT: what do you do with Opportunities?','Develop them into future strengths.'],
+  ['BCG: the best area to be in','Cash cow: few resources, lots of returns.'],
+  ['BCG: high returns but needs large cash flows','Star.'],
+  ['BCG: low resources and low benefits','Dog.'],
+  ['BCG: potential to become a cash cow with investment','Question mark.']],
+ check:[
+  {q:'How many key components does COBIT identify for GEIT?',o:['5','6','7','9'],a:2,e:'Seven.'},
+  {q:'In the BCG matrix, which area uses few resources but produces a lot of returns?',o:['Star','Dog','Question mark','Cash cow'],a:3,e:'A cash cow is the best area to be in.'},
+  {q:'A SWOT "Opportunity" should be:',o:['Mitigated','Developed into a future strength','Ignored','Reported to regulators'],a:1,e:'Weaknesses are mitigated; threats are addressed before they worsen.'}]},
+
+{id:'2e',t:2,title:'Roles and the RACI chart',blurb:'Who is accountable for what.',
+ points:[
+  {h:'Why structures matter',b:'IT-related decisions must be made transparently, with effective communication between business and IT management. Organisational structures are an enabler in COBIT. Not every role must exist, but someone should be able to identify with each.'},
+  {h:'Senior roles',b:'<ul><li><b>Board:</b> accountable for governance and overall control of resources</li><li><b>CEO:</b> total management of the enterprise</li><li><b>CFO:</b> financial management, financial risk and controls, accurate accounts</li><li><b>COO:</b> operation of the enterprise</li><li><b>CRO:</b> all aspects of risk management (an IT risk officer may oversee IT risk)</li><li><b>CIO:</b> aligning IT and business strategies; planning, resourcing and delivering IT services</li><li><b>CISO:</b> security of enterprise information in all forms</li><li><b>Business executive:</b> a specific business unit or subsidiary</li></ul>'},
+  {h:'RACI chart',b:'<b>R</b>esponsible, <b>A</b>ccountable, <b>C</b>onsulted, <b>I</b>nformed. COBIT uses RACI to assign governance responsibilities to roles and give end-to-end coverage. In the EDM01 example the Board is Accountable.'},
+  {h:'The responsibility poem',b:'Everybody, Somebody, Anybody and Nobody: a job everybody thought somebody would do, so nobody did it. It shows why responsibility must be assigned explicitly.'}
+ ],
+ cards:[
+  ['CIO','Aligns IT and business strategies; accountable for planning, resourcing and delivering IT services.'],
+  ['CISO','Accountable for the security of enterprise information in all its forms.'],
+  ['CRO','Accountable for all aspects of risk management across the enterprise.'],
+  ['CFO','Accountable for all aspects of financial management, including financial risk and controls.'],
+  ['RACI stands for...','Responsible, Accountable, Consulted, Informed.'],
+  ['What does the responsibility poem teach?','Responsibilities must be explicitly assigned, or nobody does the job.']],
+ check:[
+  {q:'Which role is accountable for aligning IT and business strategies?',o:['CISO','CRO','CIO','COO'],a:2,e:'CIO.'},
+  {q:'Which role is accountable for the security of enterprise information in all its forms?',o:['CIO','CISO','CRO','CFO'],a:1,e:'CISO.'},
+  {q:'In COBIT, RACI stands for:',o:['Responsible, Accountable, Consulted, Informed','Risk, Assurance, Control, Information','Review, Approve, Confirm, Inform','Resource, Audit, Compliance, Integrity'],a:0,e:'RACI links governance activities to roles.'}]},
+
+/* ===== TOPIC 3 ===== */
+{id:'3a',t:3,title:'Strategic alignment & the SAM',blurb:'Aligning IT with the business, and the Strategic Alignment Model.',
+ points:[
+  {h:'What strategic management does',b:'Corporate and IT governance must be in place for an enterprise to achieve its aims, and business-IT alignment must be achieved. Strategic management aims for <b>strategic alignment</b> by asking two questions: how is IT aligned with the business, and how is the business aligned with IT? It is a <b>two-way</b> relationship.'},
+  {h:'Strategic Alignment Model (SAM)',b:'Four boxes: <b>Business Strategy</b> and <b>IT Strategy</b> (external domain), <b>Organization Infrastructure & Processes</b> and <b>IS Infrastructure & Processes</b> (internal domain). The business domain is on the left and the IT domain on the right.'},
+  {h:'Domains and integration',b:'<ul><li><b>External domain:</b> business strategy and IT strategy.</li><li><b>Internal domain:</b> key business processes, policies, guidelines, procedures.</li><li><b>Strategic integration:</b> the vertical link between external and internal.</li><li><b>Functional integration:</b> the horizontal link between business and IT.</li><li><b>Cross alignment:</b> business strategy to IT infrastructure and processes, and IT strategy to organisation infrastructure and processes.</li></ul>'},
+  {h:'Strategic planning process',b:'Business strategy is defined first and IT strategy is developed from it. It takes into account <b>external factors</b> (market, industry, geopolitics) and <b>internal factors</b> (culture, organisation, risk appetite).'}
+ ],
+ vis:{title:'The four SAM boxes (tap each)',items:[
+  ['Business Strategy','External domain, business side.'],['IT Strategy','External domain, IT side.'],
+  ['Organization Infra & Processes','Internal domain, business side.'],['IS Infra & Processes','Internal domain, IT side.']]},
+ cards:[
+  ['Strategic management aims to achieve...','Strategic alignment between business and IT.'],
+  ['The two key questions of strategic management','How is IT aligned with the business? How is the business aligned with IT?'],
+  ['SAM external domain','Business strategy and IT strategy.'],
+  ['SAM internal domain','Key business processes, policies, guidelines and procedures (organisation and IS infrastructure and processes).'],
+  ['Strategic vs functional integration','Strategic = vertical (external to internal). Functional = horizontal (business to IT).'],
+  ['External vs internal factors in planning','External: market, industry, geopolitics. Internal: culture, organisation, appetite.']],
+ check:[
+  {q:'In the SAM, the external domain consists of:',o:['Business strategy and IT strategy','Business processes and IT processes','Policies and procedures','Hardware and software'],a:0,e:'The internal domain is the infrastructure and processes.'},
+  {q:'The relationship between business strategy and IT is:',o:['One-way, business to IT','One-way, IT to business','Two-way','Unrelated'],a:2,e:'IT can also create opportunities that change business strategy.'},
+  {q:'Which are examples of external factors in strategic planning?',o:['Culture and appetite','Market, industry, geopolitics','Organisation structure','Employee skills'],a:1,e:'Internal: culture, organisation, appetite.'}]},
+
+{id:'3b',t:3,title:'COBIT goals cascade',blurb:'From stakeholder needs down to governance objectives.',
+ points:[
+  {h:'Why a cascade',b:'COBIT\'s goals cascade helps translate stakeholder needs into enterprise goals, alignment goals, governance and management objectives, and then IT goals. IT goals link back to their source, <b>stakeholder drivers and needs</b>, so they stay tied to the mission.'},
+  {h:'Value of the cascade',b:'It lets enterprise IT governance be defined from the enterprise\'s objectives and risk, which is an essential step in strategic management. It: defines <b>relevant, tangible goals</b> at each level of responsibility; <b>filters COBIT knowledge</b> to give relevant guidance for projects; and <b>communicates</b> how governance and management objectives help achieve enterprise goals.'},
+  {h:'Changing strategy',b:'Business strategy is constantly revised, so IT must readjust continually. Failure causes misalignment and <b>systemic failures</b> in governance. IT can also create opportunities that change business strategy, so it is two-way.'}
+ ],
+ vis:{title:'The 4 steps of the goals cascade (tap each)',items:[
+  ['Stakeholder drivers & needs','Drivers (strategy changes, regulation, new technology) influence stakeholder needs.'],
+  ['Enterprise goals','Stakeholder needs cascade to a set of generic enterprise goals.'],
+  ['Alignment goals','COBIT 5 defines alignment goals for each enterprise goal.'],
+  ['Governance & management objectives','Specific goals defined in the governance and management objectives.']]},
+ cards:[
+  ['Order of the goals cascade','Stakeholder drivers and needs, enterprise goals, alignment goals, governance and management objectives.'],
+  ['What influences stakeholder needs?','Stakeholder drivers: strategy changes, changing business and regulatory environment, new technologies.'],
+  ['Three values of the goals cascade','Defines tangible goals at each level; filters COBIT knowledge for projects; communicates how objectives support enterprise goals.'],
+  ['IT goals link back to...','Their source: stakeholder drivers and needs (a two-way relationship).'],
+  ['What happens if IT fails to adjust to strategy changes?','Misalignment with business objectives and systemic failures in governance.']],
+ check:[
+  {q:'In the COBIT goals cascade, enterprise goals cascade directly to:',o:['Stakeholder needs','Alignment goals','Governance & management objectives','IT policies'],a:1,e:'Needs, enterprise goals, alignment goals, objectives.'},
+  {q:'The goals cascade is valuable because it:',o:['Replaces the board','Defines relevant, tangible goals at each level of responsibility','Removes the need for policies','Guarantees profit'],a:1,e:'It also filters COBIT guidance and communicates how objectives support goals.'},
+  {q:'Stakeholder needs are influenced by:',o:['Alignment goals','Stakeholder drivers','IT goals','Maturity levels'],a:1,e:'Step 1: drivers influence needs.'}]},
+
+{id:'3c',t:3,title:'Agility & the agility loops',blurb:'Adapting quickly: monitor, improve, create.',
+ points:[
+  {h:'What agility is',b:'The enterprise\'s ability to <b>adapt quickly</b> to environmental change. It requires constantly assessing strategic business changes and their impact on IT. Agility is an <b>ongoing process</b>, not a one-time effort.'},
+  {h:'Three loops',b:'<ul><li><b>Loop 1 monitoring and deciding:</b> environmental monitoring and responsive decisions; the most profitable alignment opportunities often come from agile responses to unexpected events.</li><li><b>Loop 2 improving existing processes:</b> standardise, eliminate root causes, automate, improve reliability.</li><li><b>Loop 3 creating new processes:</b> detect new threats and opportunities, create new processes and retire obsolete ones.</li></ul>'},
+  {h:'Inputs to loops 2 and 3',b:'Usually <b>non-standard inputs</b>: either errors in the input data or system operations, or correct data that shows a new trend or event.'}
+ ],
+ vis:{title:'The three agility loops (tap each)',items:[
+  ['Loop 1: monitoring & deciding','Watch the environment and decide responsively.'],
+  ['Loop 2: improving existing processes','Standardise, eliminate root causes, automate, improve reliability.'],
+  ['Loop 3: creating new processes','Detect new threats and opportunities; create new processes; retire obsolete ones.']]},
+ cards:[
+  ['Define agility','The enterprise\'s ability to adapt quickly to changes in the environment.'],
+  ['Is agility a one-time project?','No, it is an ongoing process.'],
+  ['Loop 1','Monitoring and deciding.'],
+  ['Loop 2','Improving existing processes (automation, reliability, eliminate root causes).'],
+  ['Loop 3','Creating new processes and retiring obsolete ones.'],
+  ['Inputs to loops 2 and 3 are usually...','Non-standard inputs: errors in data or operations, or correct data showing a new trend or event.']],
+ check:[
+  {q:'Which agility loop focuses on creating new processes and retiring obsolete ones?',o:['Loop 1','Loop 2','Loop 3','All three'],a:2,e:'Loop 1 monitors and decides; Loop 2 improves existing; Loop 3 creates new.'},
+  {q:'Automating and improving the reliability of existing operations belongs to:',o:['Loop 1','Loop 2','Loop 3','None'],a:1,e:'Loop 2 improves existing processes.'},
+  {q:'According to the slides, agility is:',o:['A one-time project','An ongoing process','Only for start-ups','The same as alignment'],a:1,e:'There is no end stage.'}]},
+
+{id:'3d',t:3,title:'Barriers, policies & communication',blurb:'Why alignment fails and the CIO\'s role.',
+ points:[
+  {h:'Three barriers to strategic alignment',b:'Studies identify three: <b>expression</b>, <b>specification</b> and <b>implementation</b> barriers.'},
+  {h:'Policies and procedures',b:'They support business-IT alignment, reflect management guidance, and are tools strategic management uses to give guidance and direction.'},
+  {h:'Communication and the CIO',b:'Business and IT objectives must be continuously communicated to IT personnel so business strategy is not lost. The <b>CIO is central</b>: explain the IT strategy, make IT staff supporters, and make sure the IT strategy evolves when business goals change.'}
+ ],
+ vis:{title:'Barriers to strategic alignment (tap each)',items:[
+  ['Expression barrier','Senior management cannot communicate business strategy to operational management.'],
+  ['Specification barrier','Lack of IT involvement in strategy development, so IT and business end up with two different strategies.'],
+  ['Implementation barrier','Difficulty implementing the strategy because of the current IT portfolio, e.g. legacy systems.']]},
+ cards:[
+  ['Expression barrier','Senior management cannot communicate business strategy to operational management.'],
+  ['Specification barrier','IT not involved in strategy development, so two different strategies.'],
+  ['Implementation barrier','The current IT portfolio (e.g. legacy systems) makes the strategy hard to implement.'],
+  ['Who is central to communicating strategy to IT staff?','The CIO.'],
+  ['What are policies and procedures for?','Supporting alignment: tools to provide guidance and direction.']],
+ check:[
+  {q:'Legacy systems that make a strategy hard to implement are an example of an:',o:['Expression barrier','Specification barrier','Implementation barrier','Communication barrier'],a:2,e:'Implementation barriers stem from the current IT portfolio.'},
+  {q:'IT was not involved in developing the strategy, so IT and business have different strategies. This is a:',o:['Expression barrier','Specification barrier','Implementation barrier','Policy barrier'],a:1,e:'Specification barrier.'},
+  {q:'Which role is central to continuous communication of business and IT objectives to IT staff?',o:['CFO','CIO','Board chair','Auditor'],a:1,e:'The CIO.'}]},
+
+/* ===== TOPIC 4 ===== */
+{id:'4a',t:4,title:'What is benefits realization?',blurb:'Purpose, the business case, and types of benefit.',
+ points:[
+  {h:'Objective',b:'Ensure that: IT-enabled business investments achieve the promised benefits and deliver business value; required capabilities are delivered <b>on time and within budget</b>; and IT services and assets <b>continue</b> to contribute to business value. Many high IT expenditures do not realise their expected benefits.'},
+  {h:'Business case',b:'A comprehensive business case is critical. It contains <b>assumptions</b> on how value will be created, and these must be well tested. It is the <b>primary tool</b> for designing and articulating expected benefits.'},
+  {h:'Program and project management',b:'Value needs effective use of IT <b>plus</b> changes in business processes, individual work and organisational structures. Keep constant focus on desired business outcomes, relationships between initiatives, and how they contribute to value.'},
+  {h:'Two types of benefit',b:'<b>Business benefits</b> create value by increasing profits. <b>Intermediate benefits</b> do not directly create value but benefit stakeholders (for example better customer service that does not raise profit). Benefits realization ensures intermediate benefits contribute to business benefits, and that returns merit the resources spent. Without it, value is eroded or destroyed.'}
+ ],
+ vis:{title:'Which type of benefit? (tap each)',items:[
+  ['Business benefit','Increases the company\'s profits, so it creates value.'],
+  ['Intermediate benefit','Benefits some stakeholders but does not directly create value. Must be linked to a business benefit.']]},
+ cards:[
+  ['Three aims of benefits realization','Promised benefits delivered; capabilities on time and within budget; IT services and assets keep contributing value.'],
+  ['The primary tool for articulating expected benefits','The business case.'],
+  ['What must be tested in a business case?','The assumptions on how value will be created.'],
+  ['Business benefit vs intermediate benefit','Business: increases profit. Intermediate: benefits stakeholders but not profit directly.'],
+  ['Without benefits realization...','Optimal value is not created, or value is eroded or destroyed.']],
+ check:[
+  {q:'Improved customer service that does not directly increase profit is a(n):',o:['Business benefit','Intermediate benefit','Financial benefit','Portfolio benefit'],a:1,e:'Business benefits raise profit.'},
+  {q:'The primary tool for designing and articulating expected benefits is the:',o:['Business case','Balanced scorecard','RACI chart','SWOT analysis'],a:0,e:'It holds assumptions that must be tested.'},
+  {q:'Realising value requires IT together with:',o:['Only more budget','Changes in business process, individual work and organisational structures','Fewer staff','Outsourcing'],a:1,e:'IT alone does not deliver value.'}]},
+
+{id:'4b',t:4,title:'Full economic life cycle',blurb:'The five phases from investment to retirement.',
+ points:[
+  {h:'The problem',b:'The main issue with managing programs is <b>lack of continuity</b> after the required capabilities are delivered. Benefits and value usually arrive some time later, so the program must be seen through its <b>full economic life cycle</b>.'},
+  {h:'Remember it',b:'<b>I A V V R</b>: Investment, Adoption, Value creation, Value sustainment, Retirement. The business case spans investment and adoption; the service portfolio spans value creation and sustainment; a new business case may follow in sustainment.'}
+ ],
+ vis:{title:'The 5 phases (tap each)',items:[
+  ['Investment','Developing the necessary capabilities.'],
+  ['Adoption','Implementing the capabilities.'],
+  ['Value creation','Achieving the expected performance and moving capabilities into the active service portfolio.'],
+  ['Value sustainment','Assuring the assets keep creating value; may need additional investment.'],
+  ['Retirement','Decommissioning the resulting assets.']]},
+ cards:[
+  ['Five phases of the full economic life cycle','Investment, Adoption, Value creation, Value sustainment, Retirement.'],
+  ['Investment phase','Developing the necessary capabilities.'],
+  ['Adoption phase','Implementing the capabilities.'],
+  ['Value creation phase','Reaching expected performance and moving capabilities into the active service portfolio.'],
+  ['Value sustainment phase','Assuring assets continue to create value, possibly with more investment.'],
+  ['Retirement phase','Decommissioning the assets.']],
+ check:[
+  {q:'What is the correct order of the life cycle?',o:['Investment, Adoption, Value creation, Value sustainment, Retirement','Adoption, Investment, Value creation, Retirement, Value sustainment','Investment, Value creation, Adoption, Value sustainment, Retirement','Investment, Adoption, Value sustainment, Value creation, Retirement'],a:0,e:'I-A-V-V-R.'},
+  {q:'In which phase do assets keep creating value, possibly with additional investment?',o:['Adoption','Value creation','Value sustainment','Retirement'],a:2,e:'Value sustainment.'},
+  {q:'The main program-management problem full life cycle management addresses is:',o:['Too many staff','Lack of continuity after capabilities are delivered','Too much documentation','Low interest rates'],a:1,e:'Benefits arrive after delivery.'}]},
+
+{id:'4c',t:4,title:'Portfolio management',blurb:'Managing investments as a group, and the COBIT processes.',
+ points:[
+  {h:'What a portfolio is',b:'A collection of programs, projects and/or operations managed as a group to achieve strategic objectives. Components may not be interdependent or even related. <b>Portfolio management</b> is the centralised management of portfolios: identifying, prioritising, authorising, managing and controlling work to achieve strategic objectives.'},
+  {h:'Aim and activities',b:'Secure <b>optimal value</b> across the portfolio of IT-enabled investments. Establish and manage the resource portfolio; define investment thresholds; evaluate, prioritise and select, defer or reject investments; manage and optimise the portfolio; monitor and report. Programs must be defined, evaluated, prioritised, selected and actively managed through their full economic life cycle.'},
+  {h:'Benefits of portfolio management',b:'A holistic view of enterprise objectives; sharing, economies of scale and mutual benefits; resources allocated by relative importance and urgency.'},
+  {h:'Three ways to organise portfolios',b:'<ul><li><b>Category:</b> synergies, resource sharing and specialisation.</li><li><b>Product or service:</b> timely realisation of benefits at launch.</li><li><b>Resource usage:</b> common resources, specialisation, economies of scale, innovation.</li></ul>'}
+ ],
+ vis:{title:'COBIT portfolio management processes (tap each)',items:[
+  ['Establish target investment mix','Ensure the mix (cost, alignment, ROI) is optimal.'],
+  ['Determine funds','Find the funding sources and what they imply for return expectations.'],
+  ['Evaluate & select programs','Evaluate and prioritise business cases; allocate funds; start programs.'],
+  ['Monitor, optimise, report','Regularly monitor and optimise portfolio and program performance.'],
+  ['Manage benefits achievement','Monitor benefits against the agreed and current business case.']]},
+ cards:[
+  ['Define a portfolio','A collection of programs, projects and/or operations managed as a group to achieve strategic objectives.'],
+  ['Must portfolio components be interdependent?','No, they may be unrelated but are managed together.'],
+  ['Aim of portfolio management','Secure optimal value across the portfolio of IT-enabled investments.'],
+  ['Three ways to organise a portfolio','By category, by product or service, by resource usage.'],
+  ['First COBIT portfolio process','Establish target investment mix.'],
+  ['Five COBIT portfolio processes','Target mix; determine funds; evaluate and select programs; monitor, optimise, report; manage benefits achievement.']],
+ check:[
+  {q:'Which is NOT a way the slides say portfolios can be organised?',o:['By category','By product or service','By resource usage','By geography'],a:3,e:'Category, product/service, resource usage.'},
+  {q:'The first COBIT portfolio management process is to:',o:['Manage benefits achievement','Establish target investment mix','Monitor and report on performance','Retire assets'],a:1,e:'Target mix, funds, select, monitor, benefits.'},
+  {q:'Which statement about a portfolio is correct?',o:['Components must be tightly interdependent','Components may be unrelated but are managed together for strategic objectives','Only projects allowed','It ends when the first project ends'],a:1,e:'It can include programs, projects and operations.'}]},
+
+{id:'4d',t:4,title:'Benefit calculation techniques',blurb:'Payback, ROI and non-financial techniques.',
+ points:[
+  {h:'Why calculate benefits',b:'Benefit calculation techniques communicate the expected value of a business plan. Examples: breakeven analysis, cost-benefit analysis (CBA), payback period, return on investment (ROI), service life cycle.'},
+  {h:'Financial techniques (preferred)',b:'Based on quantifiable values, so they give absolute values to measure benefit. <b>Payback period:</b> the time needed to recoup the initial investment; used to evaluate or compare mutually exclusive investments. <b>ROI:</b> the ratio of expected profit to initial cost, compared with the <b>opportunity cost of capital</b>; the greater the return, the more likely the investment goes ahead.'},
+  {h:'Non-financial CBA',b:'Used when benefits are largely intangible or have no ready market value. It finds a <b>surrogate measure</b>. Examples: <b>organizational flexibility</b> (ability and ease of responding, a source of competitive advantage) and <b>information economics</b> (information has economic value).'}
+ ],
+ vis:{title:'Which technique? (tap each)',items:[
+  ['Payback period','Time to recoup the initial investment. Compare mutually exclusive options.'],
+  ['ROI','Expected profit divided by initial cost, compared with the opportunity cost of capital.'],
+  ['Non-financial CBA','Surrogate measures for intangible costs and benefits, such as organizational flexibility or information economics.']]},
+ cards:[
+  ['Payback period','The time needed to recoup the initial investment.'],
+  ['ROI','Ratio of expected profit to initial investment cost, compared with the opportunity cost of capital.'],
+  ['Why are financial techniques preferred?','They are based on quantifiable values and give absolute measures of benefit.'],
+  ['When is non-financial CBA used?','When benefits are intangible or hard to quantify and have no ready market value.'],
+  ['Two non-financial techniques','Organizational flexibility and information economics.'],
+  ['Organizational flexibility','The ability of the organisation to respond and its ease of responding; a source of competitive advantage.']],
+ check:[
+  {q:'Which technique measures the time needed to recoup the initial investment?',o:['ROI','Payback period','Information economics','Organizational flexibility'],a:1,e:'Used to compare mutually exclusive investments.'},
+  {q:'ROI is compared against:',o:['The payback period','The opportunity cost of capital','The maturity level','The portfolio mix'],a:1,e:'A greater return means the investment is more likely to proceed.'},
+  {q:'Non-financial cost-benefit analysis relies on:',o:['Surrogate measures','Exact profit figures','Audit findings','Legacy data'],a:0,e:'Used when benefits are intangible.'}]},
+
+{id:'4e',t:4,title:'Measurement & maturity levels',blurb:'Balanced Scorecard and the six capability levels.',
+ points:[
+  {h:'Why measure',b:'Measurement of performance is essential: management needs to know how well benefits are being realised. The <b>Balanced Scorecard</b> evaluates IT from the <b>user\'s perspective</b>.'},
+  {h:'Maturity model (ISO 15504)',b:'Evaluates the capability of the organisation against <b>six levels</b>, 0 to 5. Each level includes all attributes of the levels below it. Capability maturity measures the maturity of the process.'},
+  {h:'Remember it',b:'<b>I P M E P O</b>: Incomplete, Performed, Managed, Established, Predictable, Optimizing.'}
+ ],
+ vis:{title:'The six maturity levels (tap each)',items:[
+  ['0 Incomplete','Process not implemented or fails its purpose; little or no evidence of systematic achievement.'],
+  ['1 Performed','The implemented process achieves its purpose.'],
+  ['2 Managed','Performed in a managed fashion; work products established, controlled and maintained.'],
+  ['3 Established','Implemented using a defined process capable of achieving its outcomes.'],
+  ['4 Predictable','Operates within defined limits to achieve its outcomes.'],
+  ['5 Optimizing','Continuously improved to meet current and projected business goals.']]},
+ cards:[
+  ['Which standard is the maturity model based on?','ISO 15504.'],
+  ['How many maturity levels?','Six: 0 to 5.'],
+  ['Level 0','Incomplete.'],['Level 3','Established: uses a defined process.'],
+  ['Level 4','Predictable: operates within defined limits.'],
+  ['Level 5','Optimizing: continuously improved for current and projected goals.'],
+  ['The Balanced Scorecard evaluates IT from whose perspective?','The user\'s perspective.']],
+ check:[
+  {q:'Which level means the process operates within defined limits to achieve its outcomes?',o:['Level 2 Managed','Level 3 Established','Level 4 Predictable','Level 5 Optimizing'],a:2,e:'Level 3 = defined process; 4 = defined limits.'},
+  {q:'A process that is not implemented or fails its purpose is at level:',o:['0 Incomplete','1 Performed','2 Managed','3 Established'],a:0,e:'Levels run 0 to 5.'},
+  {q:'The Balanced Scorecard allows IT to be evaluated from whose perspective?',o:['The auditor\'s','The user\'s','The regulator\'s','The supplier\'s'],a:1,e:'It is a process and service measurement technique.'}]}
+];
+const GEIT_MCQ = [
+{t:1,q:"Which is NOT one of the four pillars of IT governance?",o:["Strategic Management","Benefits Realization","Risk Optimization","Compliance Auditing"],a:3,e:"The four pillars are Strategic Management, Benefits Realization, Risk Optimization and Resource Optimization."},
+{t:1,q:"The Code of Corporate Governance for publicly-listed companies in Singapore is published by:",o:["OECD","ISACA","Monetary Authority of Singapore","IFAC"],a:2,e:"MAS publishes the Code. OECD has six international principles, ISACA defines enterprise governance, IFAC identified conformance and performance."},
+{t:1,q:"A hiring AI systematically disadvantages women. Which Responsible AI principle is most directly breached?",o:["Fairness","Safety & Reliability","Privacy & Security","Human Oversight"],a:0,e:"Fairness means treating individuals equitably and not amplifying discrimination."},
+{t:1,q:"The Asilomar Conference (1975) is cited as a model of proactive governance in which field?",o:["The Internet","Social media","Genetic engineering","Cloud computing"],a:2,e:"Researchers paused genetic engineering work to set safety norms before going on."},
+{t:1,q:"The Enron scandal (2001) is used to illustrate the need for governance to stop:",o:["Hackers stealing customer data","Senior management acting for their own benefit at the expense of the public good","Companies failing to adopt AI","Data centres using too much energy"],a:1,e:"Corporate governance exists so management does not benefit itself at the expense of shareholders and the public."},
+{t:1,q:"AI governance is best described as focusing on:",o:["Managing the whole corporation","Managing AI within IT governance through effective controls","Replacing IT governance","Managing only AI vendors"],a:1,e:"Corporate governance manages the whole corporation, IT governance manages the role of IT, AI governance manages AI within IT governance."},
+{t:1,q:"How many principles are in the OECD Principles of Corporate Governance covered in the slides?",o:["4","5","6","7"],a:2,e:"Six principles, from the basis of an effective framework through to the responsibilities of the board."},
+{t:1,q:"The three pillars of sustainability in technology governance are:",o:["Environmental, Social, Economic","Energy, Safety, Efficiency","People, Process, Technology","Risk, Value, Resource"],a:0,e:"Environmental, Social and Economic. Do not confuse with ESG, which is Environmental, Social, Governance."},
+{t:1,q:"In Green IT, PUE stands for:",o:["Power Usage Effectiveness","Programmable Utility Engine","Public Utility Emissions","Predictive Usage Estimate"],a:0,e:"PUE measures data centre energy efficiency."},
+{t:1,q:"Which statement about ESG reporting for technology companies matches the slides?",o:["It is shifting from voluntary to mandatory disclosure","It applies only to banks","It only covers financial results","It is being phased out"],a:0,e:"ESG is rapidly shifting from voluntary reporting to mandatory disclosure."},
+{t:1,q:"According to the slides, a lack of IT governance:",o:["Always causes business failure","May lead to wastage and lost opportunities, but does not necessarily mean business failure","Has no effect","Only matters for listed companies"],a:1,e:"Watch absolute words. The slides say lack of IT governance may not mean business failure or loss."},
+{t:1,q:"Which Responsible AI principle requires that humans stay in control of consequential decisions and that systems can be corrected?",o:["Transparency","Accountability","Human Oversight","Safety & Reliability"],a:2,e:"Human Oversight: humans remain in control, and systems must be correctable."},
+{t:1,q:"Measuring Scope 1, 2 and 3 emissions across the IT value chain is called:",o:["Carbon accounting","Cloud optimisation","Circular economy","Right-sizing"],a:0,e:"Carbon accounting measures and reports Scope 1, 2 and 3 emissions."},
+
+{t:2,q:"Which pair are both frameworks for the GOVERNANCE (not management) of enterprise IT?",o:["COBIT and ISO 38500","ITIL and CMMI","TOGAF and ISO 27001","COBIT and ITIL"],a:0,e:"COBIT and ISO 38500 target governance. ITIL, CMMI, TOGAF and ISO 27001 target management."},
+{t:2,q:"A newly appointed CEO prompts a company to start a GEIT initiative. This is an example of a:",o:["Pain point","Trigger event","Barrier","Enabler"],a:1,e:"New CIO, CFO, CEO or board member, mergers and new regulations are trigger events."},
+{t:2,q:"In the BCG matrix, which area uses few resources but produces a lot of returns?",o:["Star","Dog","Question mark","Cash cow"],a:3,e:"A cash cow is the best area to be in. A star needs large cash flows."},
+{t:2,q:"Which role is accountable for aligning IT and business strategies?",o:["CISO","CRO","CIO","COO"],a:2,e:"The CIO aligns IT and business strategy and manages delivery of IT services. The CISO handles information security."},
+{t:2,q:"According to the IFAC report (2003), which dimension of enterprise governance focuses on strategy and value creation?",o:["Conformance","Performance","Compliance","Assurance"],a:1,e:"Performance covers strategy, value creation and risk appetite. Conformance covers structure, roles and remuneration."},
+{t:2,q:"How many key components does COBIT identify for achieving GEIT?",o:["5","6","7","9"],a:2,e:"Seven: principles/policies/frameworks, processes, organisational structures, culture/ethics/behaviour, information, services/infrastructure/applications, people/skills/competencies."},
+{t:2,q:"The definition of enterprise governance used in the slides comes from:",o:["ISACA","IFAC","MAS","OECD"],a:0,e:"ISACA gives the definition. IFAC (2003) gives conformance and performance. Weill and Ross give the six key assets."},
+{t:2,q:"In a COBIT RACI chart, the letters stand for:",o:["Responsible, Accountable, Consulted, Informed","Risk, Assurance, Control, Information","Review, Approve, Confirm, Inform","Resource, Audit, Compliance, Integrity"],a:0,e:"RACI links each governance process to roles."},
+{t:2,q:"Which is NOT one of the six key assets of enterprise governance?",o:["IP assets","Relationship assets","Human assets","Marketing assets"],a:3,e:"The six are human, financial, physical, IP, information & IT, and relationship assets."},
+{t:2,q:"In a SWOT analysis, why does an organisation identify its Opportunities?",o:["To mitigate them","So they can be developed into future strengths","To remove them","To report to regulators"],a:1,e:"Strengths are developed, weaknesses mitigated, opportunities developed into strengths, threats addressed before they worsen."},
+{t:2,q:"In the BCG matrix, an area that is not yet generating much benefit but could become a cash cow with enough investment is a:",o:["Star","Dog","Question mark","Cash cow"],a:2,e:"Question mark: potential with investment. A dog uses few resources and gives few benefits."},
+{t:2,q:"Which role is accountable for the security of enterprise information in all its forms?",o:["CIO","CISO","CRO","CFO"],a:1,e:"CISO = information security. CRO = enterprise-wide risk. CFO = financial management."},
+{t:2,q:"ISO 27001 is the standard for:",o:["Quality management","IT service management","Information security","Risk management"],a:2,e:"ISO 9000 = quality, ISO/IEC 20000 = IT service management, ISO 31000 = risk."},
+{t:2,q:"The slides say the absence of an IT governance framework means:",o:["Everyone will fail","The rate of success will not be optimal","IT is illegal","Nothing changes"],a:1,e:"Frameworks are collected wisdom. Without them success is not guaranteed to be optimal, but failure is not certain."},
+
+{t:3,q:"In the COBIT goals cascade, enterprise goals cascade directly to:",o:["Stakeholder needs","Alignment goals","Governance & management objectives","IT policies"],a:1,e:"Order: stakeholder drivers and needs, enterprise goals, alignment goals, governance and management objectives."},
+{t:3,q:"Legacy systems that make a new strategy hard to implement are an example of which barrier to strategic alignment?",o:["Expression barrier","Specification barrier","Implementation barrier","Communication barrier"],a:2,e:"Implementation barriers come from the current IT portfolio, such as legacy systems."},
+{t:3,q:"Senior management cannot communicate the business strategy to operational management. This is an:",o:["Expression barrier","Specification barrier","Implementation barrier","Agility barrier"],a:0,e:"Expression barrier = strategy not communicated down."},
+{t:3,q:"IT was not involved in developing the strategy, so IT and the business end up with two different strategies. This is a:",o:["Expression barrier","Specification barrier","Implementation barrier","Policy barrier"],a:1,e:"Specification barrier = lack of IT involvement in strategy development."},
+{t:3,q:"Which agility loop focuses on creating new processes and retiring obsolete ones?",o:["Loop 1","Loop 2","Loop 3","All three loops"],a:2,e:"Loop 1 = monitoring and deciding, Loop 2 = improving existing processes, Loop 3 = creating new processes."},
+{t:3,q:"Automating and improving the reliability of existing operations belongs to which agility loop?",o:["Loop 1","Loop 2","Loop 3","None"],a:1,e:"Loop 2 improves existing processes, often through automation and enhanced reliability."},
+{t:3,q:"According to the slides, agility is:",o:["A one-time project","An ongoing process","Only for start-ups","The same as alignment"],a:1,e:"Agility is the enterprise's ability to adapt quickly, and it is an ongoing process with no end stage."},
+{t:3,q:"In the Strategic Alignment Model, the external domain consists of:",o:["Business strategy and IT strategy","Business processes and IT processes","Policies and procedures","Hardware and software"],a:0,e:"External = business strategy and IT strategy. Internal = organisational and IS infrastructure and processes."},
+{t:3,q:"Which role is central to continuously communicating business and IT objectives to IT personnel?",o:["CFO","CIO","Board chair","Auditor"],a:1,e:"The CIO explains the IT strategy, wins IT staff over, and evolves the strategy when business goals change."},
+{t:3,q:"The relationship between business strategy and IT is described in the slides as:",o:["One-way, business to IT","One-way, IT to business","Two-way","Unrelated"],a:2,e:"Business drives IT strategy, but IT can also create opportunities that change business strategy."},
+{t:3,q:"The goals cascade is valuable because it:",o:["Replaces the board","Defines relevant, tangible goals at each level of responsibility","Removes the need for policies","Guarantees profit"],a:1,e:"It also filters COBIT knowledge for projects and communicates how objectives support enterprise goals."},
+
+{t:4,q:"Improved customer service that does not directly increase profit is a(n):",o:["Business benefit","Intermediate benefit","Financial benefit","Portfolio benefit"],a:1,e:"Intermediate benefits help stakeholders but do not directly create value. Business benefits raise profit."},
+{t:4,q:"What is the correct order of the full economic life cycle?",o:["Investment, Adoption, Value creation, Value sustainment, Retirement","Adoption, Investment, Value creation, Retirement, Value sustainment","Investment, Value creation, Adoption, Value sustainment, Retirement","Investment, Adoption, Value sustainment, Value creation, Retirement"],a:0,e:"I-A-V-V-R."},
+{t:4,q:"In which phase do assets keep creating value, possibly with additional investment?",o:["Adoption","Value creation","Value sustainment","Retirement"],a:2,e:"Value sustainment assures the assets continue to create value."},
+{t:4,q:"The primary tool for designing and articulating the expected benefits of an IT project is the:",o:["Business case","Balanced scorecard","RACI chart","SWOT analysis"],a:0,e:"A business case holds the assumptions about how value will be created, and those assumptions must be tested."},
+{t:4,q:"Which technique measures the time needed to recoup the initial investment?",o:["ROI","Payback period","Information economics","Organizational flexibility"],a:1,e:"Payback period is used to evaluate or compare mutually exclusive investments."},
+{t:4,q:"ROI is compared against:",o:["The payback period","The opportunity cost of capital","The maturity level","The portfolio mix"],a:1,e:"If the return is greater than the opportunity cost of capital, the investment is more likely to go ahead."},
+{t:4,q:"Non-financially-oriented cost-benefit analysis is used when benefits are intangible. It relies on:",o:["Surrogate measures","Exact profit figures","Audit findings","Legacy data"],a:0,e:"Examples: organizational flexibility and information economics."},
+{t:4,q:"In the ISO 15504 maturity model, which level means the process operates within defined limits to achieve its outcomes?",o:["Level 2 Managed","Level 3 Established","Level 4 Predictable","Level 5 Optimizing"],a:2,e:"Level 3 uses a defined process, Level 4 operates within defined limits, Level 5 improves continuously."},
+{t:4,q:"A process that is not implemented or fails to achieve its purpose is at maturity level:",o:["0 Incomplete","1 Performed","2 Managed","3 Established"],a:0,e:"Levels run 0 Incomplete, 1 Performed, 2 Managed, 3 Established, 4 Predictable, 5 Optimizing."},
+{t:4,q:"The Balanced Scorecard allows IT to be evaluated from whose perspective?",o:["The auditor's","The user's","The regulator's","The supplier's"],a:1,e:"The Balanced Scorecard is a process and service measurement technique that takes the user's perspective."},
+{t:4,q:"Which statement about a portfolio is correct?",o:["Its components must be tightly interdependent","Its components may not be related but are managed together for strategic objectives","It can contain only projects","It ends when the first project finishes"],a:1,e:"A portfolio can hold programs, projects and operations managed as a group."},
+{t:4,q:"Which is NOT a way the slides say portfolios can be organised?",o:["By category","By product or service","By resource usage","By geography"],a:3,e:"Portfolios are organised by category, product or service, or resource usage."},
+{t:4,q:"The first COBIT portfolio management process is to:",o:["Manage benefits achievement","Establish target investment mix","Monitor and report on performance","Retire assets"],a:1,e:"Order: target mix, funding sources, evaluate and select programs, monitor/optimise/report, manage benefits achievement."},
+{t:4,q:"The main program-management problem that full economic life cycle management addresses is:",o:["Too many staff","Lack of continuity after the capabilities are delivered","Too much documentation","Low interest rates"],a:1,e:"Benefits arrive after delivery, so programs must be seen through the whole life cycle."}
+];
+const GEIT_SA = [
+{t:1,q:"Explain the three levels of governance (corporate, IT, AI) and how they relate.",model:"Corporate governance ensures the whole company is run to achieve its mission and vision in line with stakeholders' needs. IT governance manages the role of IT so business objectives are met efficiently and benefits maximised. AI governance manages AI within IT governance through effective controls that create value. Each model is independent, with different emphasis but similar objectives.",pts:["Corporate governance: whole company, mission and vision, stakeholders' needs","IT governance: IT managed to achieve business objectives efficiently, maximise benefits","AI governance: AI managed through effective controls, within IT governance, to create value","Each model is independent with different emphasis but similar objectives"]},
+{t:1,q:"A bank's AI loan-approval system is found to reject female applicants more often. Using the Responsible AI principles, explain what went wrong and what controls should be in place.",model:"This is algorithmic bias that breaches Fairness. A lack of Transparency hid the problem, lack of Accountability means no clear owner, and lack of Human Oversight let decisions go uncorrected. Controls: diverse training data, bias testing and auditing, explainability tools, human-in-the-loop review, an AI ethics policy and an incident response plan.",pts:["Identifies algorithmic bias / breach of Fairness","Links to Transparency, Accountability or Human Oversight","Controls: diverse data, bias testing and auditing","Controls: explainability, human-in-the-loop review, ethics policy or incident response"]},
+{t:1,q:"Describe the three pillars of sustainability and give one Green IT strategy for each.",model:"Environmental (carbon, energy, e-waste): improve data centre PUE or use renewable energy through PPAs. Social (digital inclusion, fair labour, privacy, workforce transition): support workforce transition and reskilling. Economic (long-term value, circular economy, sustainable business models): refurbish devices and extend hardware life. Governance decides whether technology helps or harms across all three.",pts:["Names Environmental, Social and Economic","Environmental example (PUE, renewables, e-waste, carbon accounting)","Social example (inclusion, fair labour, workforce transition)","Economic example (circular economy, long-term value, sustainable models)"]},
+{t:2,q:"Distinguish the conformance and performance dimensions of enterprise governance, and name the six key assets.",model:"Per IFAC (2003), conformance (corporate governance) covers structure, roles and executive remuneration, giving accountability and assurance. Performance (business governance) covers strategy, value creation and managing risk appetite, giving value creation and resource utilisation. The six assets are human, financial, physical, IP, information & IT, and relationship assets.",pts:["Conformance: structure, roles, executive remuneration, accountability","Performance: strategy, value creation, risk appetite","IFAC (2003) as the source","All six assets: human, financial, physical, IP, information & IT, relationship"]},
+{t:2,q:"A company has just appointed a new CIO and failed its last regulatory audit. Identify the trigger events and pain points, and list the seven COBIT components a GEIT initiative should address.",model:"Trigger events: the new CIO, and the external audit or new compliance requirement. Pain point: failure to meet regulatory requirements. The seven components: principles, policies and frameworks; processes; organisational structures; culture, ethics and behaviour; information; services, infrastructure and applications; people, skills and competencies. A holistic approach to how they interact is key.",pts:["Trigger: new CIO","Trigger or pain point: audit / regulatory failure","Lists all 7 COBIT components","Notes the holistic interaction of components"]},
+{t:3,q:"Explain the COBIT goals cascade and why it is valuable.",model:"Stakeholder drivers influence stakeholder needs, which cascade to enterprise goals, then alignment goals, then governance and management objectives. It translates stakeholder needs into tangible IT goals, links IT goals to their source, defines relevant goals at each level of responsibility, filters COBIT guidance for projects, and communicates how objectives support enterprise goals, achieving business and IT alignment.",pts:["Four steps in the correct order","Links IT goals back to stakeholder needs (two-way)","Defines relevant, tangible goals at each level","Filters COBIT guidance / communicates how objectives support enterprise goals"]},
+{t:3,q:"A retailer's CEO announces a new online strategy but IT staff keep working on old plans, and legacy systems cannot support it. Identify the alignment barriers and recommend actions.",model:"Expression barrier: strategy was not communicated to operations. Implementation barrier: the legacy IT portfolio. Possibly a specification barrier if IT was not involved in setting the strategy. Actions: the CIO communicates and wins IT buy-in, involve IT in strategy development, use the goals cascade, apply the agility loops (monitor, improve existing, create new processes and retire obsolete ones), and revise policies and procedures.",pts:["Expression barrier","Implementation barrier (legacy systems)","Specification barrier or involving IT in strategy","Actions: CIO communication, agility loops, goals cascade or policies"]},
+{t:4,q:"Describe the five phases of the full economic life cycle and explain why managing only to project delivery destroys value.",model:"Investment (develop capabilities), Adoption (implement), Value creation (reach expected performance, enter the service portfolio), Value sustainment (keep creating value, maybe reinvest), Retirement (decommission). Benefits usually arrive after delivery and programs often lack continuity after capabilities are delivered. Without managing the full cycle, value is eroded or never realised.",pts:["Five phases in the right order","Brief description of each phase","Benefits arrive after delivery / lack of continuity","Value eroded or not realised without full-cycle management"]},
+{t:4,q:"A firm is choosing between two IT projects. Compare payback period, ROI and a non-financial technique, and say when each is appropriate.",model:"Payback period is the time to recoup the initial investment and suits comparing mutually exclusive projects. ROI is expected profit divided by initial cost, compared with the opportunity cost of capital. Both are financial and quantifiable, so they are preferred. When benefits are intangible, use non-financial CBA with a surrogate measure such as organizational flexibility or information economics.",pts:["Payback period: time to recoup, compares mutually exclusive investments","ROI: profit / initial cost vs opportunity cost of capital","Financial techniques are quantifiable and preferred","Non-financial CBA for intangibles, with an example (org flexibility, information economics)"]},
+{t:4,q:"Explain portfolio management and how a portfolio can be organised.",model:"A portfolio is a collection of programs, projects and operations managed together for strategic objectives. Portfolio management centrally identifies, prioritises, authorises, manages and controls them to secure optimal value. Organise by category (synergies, resource sharing), product or service (timely benefit realisation) or resource usage (specialisation, economies of scale). COBIT processes: target investment mix, funding sources, evaluate and select programs, monitor/optimise/report, manage benefits achievement.",pts:["Definition of a portfolio and of portfolio management","Aim: optimal value across the investments","Three ways to organise: category, product/service, resource usage","COBIT processes (target mix, funding, select, monitor, benefits)"]},
+{t:4,q:"A team's process is performed and follows a defined process, but is not yet measured against limits. Which maturity level is it, and what must it do to reach level 5?",model:"Level 3 Established (defined process). Level 4 Predictable requires operating within defined limits to achieve outcomes. Level 5 Optimizing requires continuous improvement to meet current and projected business goals. Each level includes the attributes of the previous ones.",pts:["Level 3 Established","Level 4 Predictable: within defined limits","Level 5 Optimizing: continuous improvement for current and projected goals","Levels are cumulative"]}
+];
+
+/* ============ Built-in starter module (from the GEIT lessons + trainer) ============ */
+const BUILTIN_MODULE = {id:'rais', name:'Responsible AI for Sustainability', code:'', color:1, created:1};
+const BUILTIN_TEST_ID = 'geit-t14';
+const BUILTIN_TEST = {
+  id:BUILTIN_TEST_ID, moduleId:'rais', name:'Topics 1–4 Test', date:'', format:{mcq:15,sa:3}, created:1,
+  topics:[{id:'1',name:'Governance, Responsible AI & Sustainability'},{id:'2',name:'GEIT Framework'},{id:'3',name:'Strategic Management'},{id:'4',name:'Benefits Realization'}],
+  lessons: GEIT_PARTS.map(p=>({id:'b-'+p.id, topic:String(p.t), title:p.title, blurb:p.blurb, html:true, points:p.points,
+    vis:[p.vis,p.vis2].filter(Boolean), cards:p.cards.map((c,i)=>({id:'b-'+p.id+'-c'+i,f:c[0],b:c[1]})), check:p.check})),
+  mcq: GEIT_MCQ.map((m,i)=>({id:'b-q'+i, topic:String(m.t), q:m.q, o:m.o, a:m.a, e:m.e})),
+  sa: GEIT_SA.map((s,i)=>({id:'b-s'+i, topic:String(s.t), q:s.q, model:s.model, pts:s.pts})),
+  cards: []
+};
+
+/* ============ Helpers ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle = a => { a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+const clone = o => o==null? o : JSON.parse(JSON.stringify(o));
+const rid = p => p + Math.random().toString(36).slice(2,8) + Date.now().toString(36).slice(-4);
+const LET = ['A','B','C','D','E','F'];
+const COLORS = ['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)','var(--c6)'];
+const pct = (a,b) => b? Math.round(a/b*100) : 0;
+function plain(t){ // user text -> safe HTML with paragraphs and "- " bullets
+  const lines = String(t||'').split(/\n/); let out='', ul=false;
+  for(const ln of lines){ const m = ln.match(/^\s*[-•*]\s+(.*)/);
+    if(m){ if(!ul){out+='<ul>';ul=true;} out+='<li>'+esc(m[1])+'</li>'; }
+    else { if(ul){out+='</ul>';ul=false;} if(ln.trim()) out+='<p>'+esc(ln)+'</p>'; } }
+  return out + (ul?'</ul>':'');
+}
+function today0(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+function daysUntil(date){ if(!date) return null; const d=new Date(date+'T00:00:00'); if(isNaN(d)) return null; return Math.round((d-today0())/864e5); }
+function whenLabel(date){ const n=daysUntil(date); if(n===null) return ''; if(n===0) return 'Today'; if(n===1) return 'Tomorrow'; if(n>1) return 'in '+n+' days'; if(n===-1) return 'Yesterday'; return (-n)+' days ago'; }
+function datePill(date){ const n=daysUntil(date); if(n===null) return '<span class="pill past">No date set</span>';
+  const f = new Date(date+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'});
+  return `<span class="pill ${n>=0&&n<=7?'soon':(n<0?'past':'')}">${esc(f)} · ${esc(whenLabel(date))}</span>`; }
+function ago(ts){ const s=(Date.now()-ts)/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+' min ago'; if(s<86400) return Math.floor(s/3600)+' h ago'; const d=Math.floor(s/86400); return d===1?'yesterday':d+' days ago'; }
+
+/* ============ Storage: account db when available, else this browser ============ */
+const LS_KEY = 'revdesk.v1';
+let docs = {}; let mode = 'connecting'; let col = null; let slowNote = false; let saveError = '';
+const dirty = {}, timers = {}, inflight = {};
+function lsGet(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function lsSet(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(docs)); }catch(e){} }
+function put(id, data, delay){
+  if(data===null) delete docs[id]; else docs[id]=data;
+  dirty[id]=true; clearTimeout(timers[id]);
+  timers[id]=setTimeout(()=>flush(id), delay||0);
+}
+async function flush(id){
+  if(mode==='connecting') return;           // flushed once the store answers
+  if(mode==='local'){ lsSet(); delete dirty[id]; return; }
+  if(inflight[id]){ inflight[id].again=true; return; }
+  inflight[id]={again:false};
+  try{
+    do{ inflight[id].again=false; const d=docs[id]; const ref=col.doc(id);
+        if(d===undefined) await ref.delete(); else await ref.set(clone(d)); }
+    while(inflight[id].again);
+    delete dirty[id]; if(saveError){ saveError=''; renderRail(); }
+  }catch(e){
+    saveError = e && e.code==='quota_exceeded' ? 'Storage is full. Delete some tests to save more.' : 'Some changes could not be saved. They will retry on your next change.';
+    renderRail();
+  }finally{ delete inflight[id]; }
+}
+function goLocal(){ mode='local'; const loc=lsGet(); for(const k in loc) if(!dirty[k]) docs[k]=loc[k]; lsSet(); for(const k in dirty) delete dirty[k]; render(); }
+async function initStore(){
+  if(!window.claude || !window.claude.use){ goLocal(); return; }
+  let db=null, user=null;
+  try{ [db,user] = await Promise.all([claude.use('db'), claude.use('user')]); }catch(e){}
+  const uid = user ? await user.id() : null;
+  if(!db || !uid){ goLocal(); return; }
+  col = db.collection('data/users/'+uid);
+  const timer = setTimeout(()=>{ if(mode==='connecting'){ slowNote=true; renderRail(); } }, 10000);
+  col.onSnapshot(snap=>{
+    const next={}; snap.docs.forEach(d=>{ if(d.exists) next[d.id]=d.data(); });
+    for(const k in dirty){ if(docs[k]===undefined) delete next[k]; else next[k]=docs[k]; }
+    docs = next;
+    if(!snap.metadata.fromCache && mode==='connecting'){ mode='db'; slowNote=false; clearTimeout(timer); Object.keys(dirty).forEach(flush); }
+    render();
+  }, err=>{ clearTimeout(timer); slowNote=false; goLocal(); });
+}
+
+/* ============ Data model ============ */
+function mergeTest(base, d){
+  d = d||{}; const rm = new Set(d.removed||[]);
+  const pick = k => [ ...((base&&base[k])||[]).filter(x=>!rm.has(x.id)), ...(d[k]||[]) ];
+  return { id:(base&&base.id)||d.id, moduleId:d.moduleId||(base&&base.moduleId), name:d.name||(base&&base.name)||'Untitled test',
+    date:d.date!==undefined?d.date:((base&&base.date)||''), format:d.format||(base&&base.format)||{mcq:15,sa:3},
+    topics:d.topics||(base&&base.topics)||[], lessons:pick('lessons'), mcq:pick('mcq'), sa:pick('sa'), cards:pick('cards'),
+    builtin:!!base, created:d.created||(base&&base.created)||0, deleted:!!d.deleted };
+}
+function getModules(){
+  const out=[]; const bo=docs['m_'+BUILTIN_MODULE.id];
+  const bm = Object.assign({}, BUILTIN_MODULE, bo||{}); bm.builtin=true; if(!bm.deleted) out.push(bm);
+  for(const k in docs){ if(k.startsWith('m_') && k!=='m_'+BUILTIN_MODULE.id){ const v=docs[k]; if(v && !v.deleted) out.push(Object.assign({},v,{id:k.slice(2)})); } }
+  return out.sort((a,b)=>(a.created||0)-(b.created||0));
+}
+function getModule(mid){ return getModules().find(m=>m.id===mid); }
+function getTests(){
+  const out=[]; const bt = mergeTest(BUILTIN_TEST, docs['t_'+BUILTIN_TEST_ID]); if(!bt.deleted) out.push(bt);
+  for(const k in docs){ if(k.startsWith('t_') && k!=='t_'+BUILTIN_TEST_ID){ const v=docs[k]; if(v && !v.deleted) out.push(mergeTest(null, Object.assign({},v,{id:k.slice(2)}))); } }
+  const mods = new Set(getModules().map(m=>m.id));
+  return out.filter(t=>mods.has(t.moduleId)).sort((a,b)=>(a.created||0)-(b.created||0));
+}
+function getTest(tid){ return getTests().find(t=>t.id===tid); }
+function testsOf(mid){ return getTests().filter(t=>t.moduleId===mid); }
+function editTest(tid, fn){ const d = clone(docs['t_'+tid]) || {}; fn(d); put('t_'+tid, d); }
+function topicOf(test, id){ const i=test.topics.findIndex(t=>t.id===id); return i<0? {id, name:'General', c:'var(--muted)', n:''} : {id, name:test.topics[i].name, c:COLORS[i%COLORS.length], n:i+1}; }
+function topicTag(test,id){ const t=topicOf(test,id); return `<span class="tag" style="--tc:${t.c}" title="${esc(t.name)}">${esc(t.name)}</span>`; }
+function allCards(test){
+  return [ ...test.lessons.flatMap(l=>(l.cards||[]).map(c=>({...c, topic:l.topic}))), ...test.cards ];
+}
+function prog(tid){ return docs['p_'+tid] || {mcq:{},cards:{},lessons:{},hist:[]}; }
+function editProg(tid, fn, delay){ const p = clone(prog(tid)); p.mcq=p.mcq||{}; p.cards=p.cards||{}; p.lessons=p.lessons||{}; p.hist=p.hist||[]; fn(p); put('p_'+tid, p, delay===undefined?1200:delay); }
+function readiness(test){
+  const p = prog(test.id);
+  const L = test.lessons.length ? test.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length/test.lessons.length : null;
+  const Q = test.mcq.length ? test.mcq.filter(q=>p.mcq&&p.mcq[q.id]===1).length/test.mcq.length : null;
+  const cards = allCards(test); const C = cards.length ? cards.filter(c=>p.cards&&p.cards[c.id]).length/cards.length : null;
+  const parts=[]; if(L!==null) parts.push([L,1]); if(Q!==null) parts.push([Q,2]); if(C!==null) parts.push([C,1]);
+  const w = parts.reduce((a,x)=>a+x[1],0);
+  return { pct: w? Math.round(parts.reduce((a,x)=>a+x[0]*x[1],0)/w*100) : 0, L, Q, C };
+}
+function ring(p, sz){ return `<div class="ring" style="--p:${p};--sz:${sz||84}px" role="img" aria-label="${p}% ready"><span class="num">${p}%</span></div>`; }
+
+/* ============ UI state ============ */
+let ui = { page:'home', mid:null, tid:null, tab:'overview', lid:null, ltab:'learn', recall:false, open:{}, sel:{},
+  fc:null, ck:null, deck:null, sess:null, setup:{topics:null,count:10}, addType:'mcq', gen:null, modal:null, menu:false, toast:'' };
+let sampleFn = null;
+
+function routeKey(){ return [ui.page,ui.mid,ui.tid,ui.tab,ui.lid,ui.ltab,ui.sess?ui.sess.i:'',ui.modal?ui.modal.kind:''].join('|'); }
+function setHash(){ let h = ui.page==='home'?'home': ui.page==='module'?'m-'+ui.mid : 't-'+ui.tid+'--'+ui.tab; try{ if(location.hash.slice(1)!==h) history.replaceState(null,'','#'+h); }catch(e){} }
+function readHash(){ const h=(location.hash||'').slice(1); if(h.startsWith('m-')){ ui.page='module'; ui.mid=h.slice(2); }
+  else if(h.startsWith('t-')){ const [tid,tab]=h.slice(2).split('--'); ui.page='test'; ui.tid=tid; ui.tab=tab||'overview'; } }
+function go(page, opts){ Object.assign(ui, {page, sess:null, lid:null, fc:null, ck:null, deck:null, gen:null, menu:false}, opts||{});
+  if(page==='test'){ const t=getTest(ui.tid); if(t) ui.mid=t.moduleId; }
+  render(true); window.scrollTo(0,0); }
+function toast(msg){ ui.toast=msg; renderOverlay(); clearTimeout(toast.t); toast.t=setTimeout(()=>{ui.toast='';renderOverlay();},2200); }
+
+/* ============ Render: shell ============ */
+let lastKey='';
+function render(fresh){
+  const key = routeKey(); const keep = !fresh && key===lastKey;
+  const saved = {}; let focus=null, selS=null, selE=null;
+  if(keep){ document.querySelectorAll('#main input[id], #main textarea[id], #main select[id]').forEach(el=>{ saved[el.id] = el.type==='radio'||el.type==='checkbox' ? el.checked : el.value; });
+    const a=document.activeElement; if(a && a.id && saved[a.id]!==undefined){ focus=a.id; try{ selS=a.selectionStart; selE=a.selectionEnd; }catch(e){} } }
+  lastKey = key;
+  if(ui.page==='module' && !getModule(ui.mid)) ui.page='home';
+  if(ui.page==='test' && !getTest(ui.tid)) ui.page = (mode==='connecting'?'test':'home');
+  renderRail();
+  const m = $('#main');
+  const top = `<div class="topbar"><button class="btn ghost sm" data-act="menu" aria-expanded="${ui.menu}">☰ Modules</button><span class="label">Revision Desk</span></div>`;
+  let body='';
+  if(ui.page==='test' && !getTest(ui.tid)) body = `<div class="card empty"><h3>Loading your tests…</h3><p>Fetching your saved modules.</p></div>`;
+  else body = ui.page==='home'? renderHome() : ui.page==='module'? renderModule() : renderTest();
+  m.innerHTML = top + body;
+  if(keep){ for(const id in saved){ const el=document.getElementById(id); if(!el) continue; if(el.type==='radio'||el.type==='checkbox') el.checked=saved[id]; else el.value=saved[id]; }
+    if(focus){ const el=document.getElementById(focus); if(el){ el.focus(); try{ if(selS!=null) el.setSelectionRange(selS,selE); }catch(e){} } } }
+  renderOverlay(); setHash();
+}
+function renderRail(){
+  const r=$('#rail'); const mods=getModules();
+  let h = `<button class="brand" data-go="home"><span class="logo"><span>R</span></span><span><b>Revision Desk</b><small>Modules, tests and practice</small></span></button>
+    <div style="margin-top:16px"><button class="navlink" data-go="home" aria-current="${ui.page==='home'}">Dashboard</button></div>
+    <div class="railhead"><span>Modules</span><button data-act="new-module">+ New</button></div><div class="tree">`;
+  mods.forEach((md,i)=>{
+    h += `<button class="navlink tmod" style="--mc:${COLORS[(md.color!=null?md.color:i)%COLORS.length]}" data-go="module" data-mid="${esc(md.id)}" aria-current="${ui.page==='module'&&ui.mid===md.id}"><span class="dot"></span><span>${esc(md.name)}</span></button>`;
+    testsOf(md.id).forEach(t=>{ h += `<button class="navlink ttest" data-go="test" data-tid="${esc(t.id)}" aria-current="${ui.page==='test'&&ui.tid===t.id}"><span>${esc(t.name)}</span><span class="when">${esc(whenLabel(t.date))}</span></button>`; });
+  });
+  if(!mods.length) h += `<p class="muted small" style="padding:6px 10px">No modules yet.</p>`;
+  h += `</div>`;
+  const st = saveError ? ['warn', saveError] : mode==='db' ? ['ok','Saved to your Claude account. Opens with your progress on any device.'] :
+    mode==='local' ? ['warn','Saved in this browser only. Sign in to claude.ai to keep it with your account.'] :
+    [slowNote?'warn':'', slowNote?'Can\'t reach your saved data yet. Changes will save when it connects.':'Connecting to your saved data…'];
+  h += `<div class="railfoot"><i class="${st[0]}"></i><span>${esc(st[1])}</span></div>`;
+  r.innerHTML = h; r.classList.toggle('open', ui.menu);
+}
+function renderOverlay(){
+  let h='';
+  if(ui.menu) h += `<div class="scrim" data-act="menu"></div>`;
+  if(ui.modal) h += renderModal();
+  if(ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
+  const o=$('#overlay'); const saved={}; o.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>saved[el.id]=el.value);
+  const had = !!o.querySelector('.modal'); o.innerHTML = h;
+  for(const id in saved){ const el=document.getElementById(id); if(el) el.value=saved[id]; }
+  if(ui.modal && !had){ const f=o.querySelector('input,textarea'); if(f) f.focus(); }
+}
+
+/* ============ Dashboard ============ */
+function streak(){
+  const days = new Set(); getTests().forEach(t=>(prog(t.id).hist||[]).forEach(h=>{ const d=new Date(h.at); d.setHours(0,0,0,0); days.add(+d); }));
+  let n=0, d=today0(); if(!days.has(+d)) d=new Date(+d-864e5);
+  while(days.has(+d)){ n++; d=new Date(+d-864e5); } return n;
+}
+function renderHome(){
+  const mods=getModules(), tests=getTests();
+  const upcoming = tests.filter(t=>daysUntil(t.date)!==null && daysUntil(t.date)>=0).sort((a,b)=>daysUntil(a.date)-daysUntil(b.date));
+  const focus = upcoming[0] || tests[0];
+  let mastered=0,totalQ=0; tests.forEach(t=>{ const p=prog(t.id); totalQ+=t.mcq.length; mastered+=t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===1).length; });
+  const hist = tests.flatMap(t=>(prog(t.id).hist||[]).map(h=>({...h,t}))).sort((a,b)=>b.at-a.at).slice(0,6);
+  const now = new Date();
+  let h = `<div class="pagehead"><div><div class="label">${esc(now.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'}))}</div><h1>Dashboard</h1></div>
+    <button class="btn" data-act="new-module">+ New module</button></div>`;
+  if(focus){
+    const r=readiness(focus), md=getModule(focus.moduleId), n=daysUntil(focus.date);
+    const big = n===null? '' : n===0? '<div class="big"><em>Today</em></div>' : n>0? `<div class="big num"><em>${n}</em> <span style="font-size:.4em">day${n===1?'':'s'} to go</span></div>`:'';
+    h += `<section class="hero"><div class="stack" style="gap:10px"><div class="label">${upcoming[0]?'Next test':'Your test'}</div>
+      <div><h2>${esc(focus.name)}</h2><div class="sub">${esc(md?md.name:'')}${focus.date?' · '+esc(new Date(focus.date+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'long'})):' · no date set'}</div></div>
+      ${big}
+      <div class="row" style="margin-top:6px"><button class="btn" data-go="test" data-tid="${esc(focus.id)}" data-tab="${focus.lessons.length?'lessons':'practice'}">${focus.lessons.length?'Continue lessons':'Practise now'}</button>
+      <button class="btn ghost" data-go="test" data-tid="${esc(focus.id)}" data-tab="mock">Take a mock test</button>
+      ${focus.date?'':`<button class="btn ghost" data-go="test" data-tid="${esc(focus.id)}" data-tab="manage">Set the test date</button>`}</div></div>
+      <div class="stack" style="align-items:center;gap:6px">${ring(r.pct,118)}<span class="small" style="opacity:.8">ready</span></div></section>`;
+  }
+  h += `<div class="stats">
+    <div class="stat"><span>Modules</span><b class="num">${mods.length}</b></div>
+    <div class="stat"><span>Tests</span><b class="num">${tests.length}</b></div>
+    <div class="stat"><span>MCQs mastered</span><b class="num">${mastered}<span style="font-size:.55em;color:var(--muted)"> / ${totalQ}</span></b></div>
+    <div class="stat"><span>Study streak</span><b class="num">${streak()} <span style="font-size:.55em;color:var(--muted)">day${streak()===1?'':'s'}</span></b></div></div>`;
+  h += `<section class="stack"><div class="row between"><h2 style="font-size:1.3rem">Modules</h2></div><div class="modgrid">`;
+  mods.forEach((md,i)=>{
+    const ts = testsOf(md.id);
+    h += `<article class="card modcard" style="--mc:${COLORS[(md.color!=null?md.color:i)%COLORS.length]}">
+      <div class="row between"><div>${md.code?`<div class="label">${esc(md.code)}</div>`:''}<h3>${esc(md.name)}</h3></div><button class="btn quiet sm" data-go="module" data-mid="${esc(md.id)}">Open</button></div>
+      <div class="stack" style="gap:8px">${ts.map(t=>{ const r=readiness(t); return `<button class="tline" data-go="test" data-tid="${esc(t.id)}"><b>${esc(t.name)}</b><span class="small muted num">${r.pct}% ready</span><span class="small muted">${t.date?esc(whenLabel(t.date)):'No date'} · ${t.mcq.length} MCQ · ${t.lessons.length} lessons</span><span></span><div class="progress"><i style="width:${r.pct}%"></i></div></button>`; }).join('') || '<p class="muted small">No tests yet.</p>'}</div>
+      <button class="btn ghost sm" data-act="new-test" data-mid="${esc(md.id)}" style="align-self:flex-start">+ Add test</button></article>`;
+  });
+  h += `<button class="card addcard" data-act="new-module"><span>+ New module<br><span class="small" style="font-weight:400">A course or subject, e.g. "Data Analytics"</span></span></button></div></section>`;
+  h += `<section class="card"><div class="row between" style="margin-bottom:6px"><h2 style="font-size:1.15rem">Recent activity</h2></div>${hist.length? `<div class="activity">${hist.map(a=>`<div class="act"><span class="badge">${esc(a.kind.slice(0,2).toUpperCase())}</span><div><b>${esc(a.kind)}</b> <span class="muted small">· ${esc(a.t.name)}</span><div class="muted small">${esc(ago(a.at))}</div></div><span class="sc num">${a.score}/${a.n}</span></div>`).join('')}</div>` : '<p class="muted">Finish a practice round, mock test or lesson check and it shows up here.</p>'}</section>`;
+  if(docs['m_'+BUILTIN_MODULE.id] && docs['m_'+BUILTIN_MODULE.id].deleted) h += `<p class="muted small">Removed the starter GEIT module by mistake? <button class="btn quiet sm" data-act="restore-builtin">Restore it</button></p>`;
+  return h;
+}
+
+/* ============ Module page ============ */
+function renderModule(){
+  const md=getModule(ui.mid), ts=testsOf(md.id);
+  let h = `<div class="crumbs"><button data-go="home">Dashboard</button><span>/</span><span>${esc(md.name)}</span></div>
+    <div class="pagehead"><div>${md.code?`<div class="label">${esc(md.code)}</div>`:''}<h1>${esc(md.name)}</h1><p class="muted" style="margin-top:6px">${ts.length} test${ts.length===1?'':'s'} in this module</p></div>
+    <div class="row"><button class="btn ghost" data-act="edit-module">Edit module</button><button class="btn" data-act="new-test" data-mid="${esc(md.id)}">+ Add test</button></div></div>`;
+  if(!ts.length) return h + `<div class="card empty"><h3>No tests in this module yet</h3><p>Add a test (a quiz, a midterm, the final exam), then fill it with lessons and questions.</p><div style="margin-top:14px"><button class="btn" data-act="new-test" data-mid="${esc(md.id)}">+ Add test</button></div></div>`;
+  h += `<div class="grid2">`;
+  ts.forEach(t=>{ const r=readiness(t), p=prog(t.id); const last=(p.hist||[]).slice(-1)[0];
+    h += `<article class="card stack"><div class="row between" style="align-items:flex-start;flex-wrap:nowrap"><div class="stack" style="gap:6px;min-width:0"><h2 style="font-size:1.25rem">${esc(t.name)}</h2>${datePill(t.date)}</div>${ring(r.pct,72)}</div>
+      <div class="row small muted"><span>${t.lessons.length} lessons</span><span>·</span><span>${t.mcq.length} MCQ</span><span>·</span><span>${t.sa.length} short answer</span><span>·</span><span>${allCards(t).length} cards</span></div>
+      <div class="stack" style="gap:6px">${[['Lessons done',r.L],['MCQs mastered',r.Q],['Cards known',r.C]].filter(x=>x[1]!==null).map(([l,v])=>`<div class="row between small"><span>${l}</span><span class="num">${Math.round(v*100)}%</span></div><div class="progress"><i style="width:${Math.round(v*100)}%"></i></div>`).join('')}</div>
+      ${last?`<p class="small muted">Last: ${esc(last.kind)} ${last.score}/${last.n}, ${esc(ago(last.at))}</p>`:''}
+      <div class="row"><button class="btn" data-go="test" data-tid="${esc(t.id)}">Open test</button><button class="btn ghost" data-go="test" data-tid="${esc(t.id)}" data-tab="mock">Mock test</button></div></article>`; });
+  return h + `</div>`;
+}
+
+/* ============ Test workspace ============ */
+const TABS = [['overview','Overview'],['lessons','Lessons'],['practice','Practice'],['mock','Mock test'],['short','Short answer'],['cards','Flashcards'],['review','Review misses'],['manage','Manage content']];
+function renderTest(){
+  const t=getTest(ui.tid), md=getModule(t.moduleId), r=readiness(t), p=prog(t.id);
+  const misses = t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===0).length;
+  const counts = {lessons:t.lessons.length, practice:t.mcq.length, short:t.sa.length, cards:allCards(t).length, review:misses};
+  let h = `<div class="crumbs"><button data-go="home">Dashboard</button><span>/</span><button data-go="module" data-mid="${esc(md.id)}">${esc(md.name)}</button><span>/</span><span>${esc(t.name)}</span></div>`;
+  if(!ui.sess) h += `<div class="pagehead"><div class="stack" style="gap:8px"><h1>${esc(t.name)}</h1><div class="row">${datePill(t.date)}<span class="pill">${t.format.mcq} MCQ + ${t.format.sa} short answer</span></div></div>${ring(r.pct,76)}</div>`;
+  h += `<div class="tabs" role="tablist">${TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-current="${ui.tab===k}">${l}${counts[k]!==undefined&&counts[k]>0?`<span class="n num">${counts[k]}</span>`:''}</button>`).join('')}</div>`;
+  if(ui.sess) return h + (ui.sess.done? renderResults(t) : renderItem(t));
+  const f = {overview:renderOverview, lessons:renderLessons, practice:renderPractice, mock:renderMock, short:renderShort, cards:renderDeck, review:renderReview, manage:renderManage}[ui.tab] || renderOverview;
+  return h + f(t);
+}
+function emptyFor(what){ return `<div class="card empty"><h3>No ${what} yet</h3><p>Add them yourself, paste your notes for Claude to turn into questions, or import a set.</p><div style="margin-top:14px"><button class="btn" data-tab="manage">Add content</button></div></div>`; }
+
+function renderOverview(t){
+  const r=readiness(t), p=prog(t.id), hist=(p.hist||[]).slice().reverse().slice(0,5);
+  let h = `<div class="grid3">
+    <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a 3-question check.`:'No lessons yet.'}</span></button>
+    <button class="launch" data-tab="practice"><b>Practice</b><span>${t.mcq.length} multiple-choice questions with instant feedback.</span></button>
+    <button class="launch" data-tab="mock"><b>Mock test</b><span>${t.format.mcq} MCQ + ${t.format.sa} short answer, marked at the end.${p.best?` Best: ${p.best.mcq}/${p.best.n}.`:''}</span></button></div>`;
+  if(t.topics.length){
+    h += `<section class="card stack"><div class="row between"><h2 style="font-size:1.15rem">Readiness by topic</h2><div class="legend"><span>Bar: MCQs answered correctly</span><span>Right: lessons done</span></div></div><div class="bars">` +
+      t.topics.map((tp,i)=>{ const qs=t.mcq.filter(q=>q.topic===tp.id), ok=qs.filter(q=>p.mcq&&p.mcq[q.id]===1).length;
+        const ls=t.lessons.filter(l=>l.topic===tp.id), ld=ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length;
+        return `<div class="bar" style="--tc:${COLORS[i%COLORS.length]}"><span class="nm" title="${esc(tp.name)}"><b>${i+1}</b> ${esc(tp.name)}</span><span class="track"><i style="width:${pct(ok,qs.length)}%"></i></span><span class="num small muted">${ld}/${ls.length}</span></div>`; }).join('') + `</div></section>`;
+  }
+  h += `<section class="card"><h2 style="font-size:1.15rem;margin-bottom:6px">Recent attempts</h2>${hist.length?`<div class="activity">${hist.map(a=>`<div class="act"><span class="badge">${esc(a.kind.slice(0,2).toUpperCase())}</span><div><b>${esc(a.kind)}</b><div class="muted small">${esc(ago(a.at))}</div></div><span class="sc num">${a.score}/${a.n}</span></div>`).join('')}</div>`:'<p class="muted">No attempts yet. Start with a lesson or a practice round.</p>'}</section>`;
+  return h;
+}
+
+/* ---- Lessons ---- */
+function renderLessons(t){
+  if(!t.lessons.length) return emptyFor('lessons');
+  if(ui.lid){ const l=t.lessons.find(x=>x.id===ui.lid); if(l) return renderLesson(t,l); ui.lid=null; }
+  const p=prog(t.id); const nxt=t.lessons.find(l=>!(p.lessons&&p.lessons[l.id]!==undefined));
+  let h = nxt? `<div class="card row between"><div><div class="label">Up next</div><b style="font-size:1.1rem">${esc(nxt.title)}</b></div><button class="btn" data-lesson="${esc(nxt.id)}">Start lesson</button></div>` : `<div class="card"><b>All lessons done.</b> <span class="muted">Revisit any of them to keep it fresh.</span></div>`;
+  const groups = [...t.topics.map(tp=>tp.id), ...new Set(t.lessons.map(l=>l.topic).filter(id=>!t.topics.some(tp=>tp.id===id)))];
+  groups.forEach(gid=>{ const ls=t.lessons.filter(l=>l.topic===gid); if(!ls.length) return; const tp=topicOf(t,gid);
+    h += `<section class="stack" style="gap:10px"><div class="row between"><h2 style="font-size:1.1rem">${tp.n?`<span class="muted">Topic ${tp.n} · </span>`:''}${esc(tp.name)}</h2><span class="small muted num">${ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length}/${ls.length}</span></div>
+      <div class="lessonlist">${ls.map(l=>{ const d=p.lessons&&p.lessons[l.id]!==undefined; return `<button class="lesson ${d?'done':''}" style="--tc:${tp.c}" data-lesson="${esc(l.id)}"><span class="ck">${d?'✓':''}</span><span><b>${esc(l.title)}</b><span>${esc(l.blurb||'')}</span></span></button>`; }).join('')}</div></section>`; });
+  return h;
+}
+function stepsVis(key, v, c){ const i = ui.sel[key]!==undefined?ui.sel[key]:0;
+  return `<div class="vis" style="--tc:${c}"><div class="label">${esc(v.title)}</div><div class="steps">${v.items.map((it,j)=>`<button class="step" data-step="${key}|${j}" aria-pressed="${i===j}"><i>${j+1}</i>${esc(it[0])}</button>`).join('')}</div><div class="stepdesc"><b>${esc(v.items[i][0])}.</b> ${esc(v.items[i][1])}</div></div>`; }
+function renderLesson(t,l){
+  const tp=topicOf(t,l.topic), c=tp.c, idx=t.lessons.indexOf(l), nxt=t.lessons[idx+1], prv=t.lessons[idx-1], p=prog(t.id);
+  const done = p.lessons&&p.lessons[l.id]!==undefined;
+  let h = `<div class="stack" style="--tc:${c}"><div class="row between"><button class="btn quiet sm" data-act="lessons-back">← All lessons</button>${done?`<span class="tag" style="--tc:var(--good)">Done · check ${p.lessons[l.id]}/${(l.check||[]).length}</span>`:''}</div>
+    <div><span class="tag" style="--tc:${c}">${tp.n?'Topic '+tp.n+': ':''}${esc(tp.name)}</span><h2 style="font-size:1.7rem;margin-top:8px">${esc(l.title)}</h2>${l.blurb?`<p class="muted" style="margin-top:4px">${esc(l.blurb)}</p>`:''}</div>
+    <div class="subtabs">${[['learn','1 Learn'],['cards','2 Flashcards'],['check','3 Check']].map(([k,lb])=>`<button data-ltab="${k}" aria-current="${ui.ltab===k}">${lb}</button>`).join('')}</div>`;
+  if(ui.ltab==='learn'){
+    const pts=(l.points||[]).map((pt,i)=>`<div class="point ${ui.recall&&ui.open[l.id+':'+i]?'open':''}" data-pt="${esc(l.id)}:${i}"><h3>${esc(pt.h)}</h3><div class="body">${l.html? (pt.b.startsWith('<ul')?pt.b:'<p>'+pt.b+'</p>') : plain(pt.b)}</div></div>`).join('');
+    h += `<div class="row"><button class="switch" data-act="recall" aria-pressed="${ui.recall}">${ui.recall?'Recall mode on':'Recall mode off'}</button><span class="muted small">${ui.recall?'Read each heading, say the answer, then tap to check.':'Hide the notes and test yourself.'}</span></div>
+      <div class="${ui.recall?'recall':''} stack" style="gap:12px">${pts||'<p class="muted">This lesson has no notes.</p>'}</div>
+      ${(l.vis||[]).map((v,j)=>stepsVis(l.id+'v'+j,v,c)).join('')}
+      <div class="row">${(l.cards||[]).length?'<button class="btn" data-ltab="cards">Next: flashcards</button>':(l.check||[]).length?'<button class="btn" data-ltab="check">Next: check</button>':''}${prv?`<button class="btn ghost" data-lesson="${esc(prv.id)}">Previous lesson</button>`:''}${!(l.check||[]).length&&!done?'<button class="btn ghost" data-act="lesson-done">Mark as done</button>':''}</div>`;
+  } else if(ui.ltab==='cards') h += renderLessonCards(t,l,c);
+  else h += renderCheck(t,l,c,nxt);
+  return h + '</div>';
+}
+function startFc(l){ fc_new(l.id, shuffle((l.cards||[]).map((_,i)=>i))); }
+function fc_new(lid, order){ ui.fc = {lid, order, i:0, flipped:false, got:0, again:[]}; }
+function renderLessonCards(t,l,c){
+  const cards=l.cards||[]; if(!cards.length) return `<p class="muted">No flashcards in this lesson.</p><div class="row"><button class="btn" data-ltab="check">Next: check</button></div>`;
+  if(!ui.fc || ui.fc.lid!==l.id) startFc(l);
+  const p=prog(t.id), fc=ui.fc, known=cards.filter(cd=>p.cards&&p.cards[cd.id]).length;
+  if(fc.i>=fc.order.length) return `<div class="card stack"><h3>Round finished</h3><p>You marked <b>${fc.got}</b> as known and <b>${fc.again.length}</b> to repeat. ${known} of ${cards.length} cards in this lesson are known.</p>
+    <div class="row">${fc.again.length?`<button class="btn" data-act="fc-again">Repeat ${fc.again.length}</button>`:''}<button class="btn ${fc.again.length?'ghost':''}" data-ltab="check">Next: check</button><button class="btn ghost" data-act="fc-restart">Restart cards</button></div></div>`;
+  const cd=cards[fc.order[fc.i]];
+  return flipCard(cd, `Card ${fc.i+1} of ${fc.order.length} · ${known}/${cards.length} known`, c, fc.flipped);
+}
+function flipCard(cd, meta, c, flipped){
+  return `<div class="fcwrap" style="--tc:${c}"><div class="muted small num">${meta}</div>
+    <button class="flip ${flipped?'on':''}" data-act="flip" aria-label="Flip card"><div class="in"><div class="face"><small>Question</small>${esc(cd.f)}</div><div class="face back"><small>Answer</small>${esc(cd.b)}</div></div></button>
+    <div class="muted small">${flipped?'Did you get it?':'Think of the answer, then tap the card or press Space.'}</div>
+    <div class="row"><button class="btn ghost" data-act="fc-miss" ${flipped?'':'disabled'}>Again</button><button class="btn" data-act="fc-got" ${flipped?'':'disabled'}>Got it</button></div></div>`;
+}
+function startCk(l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:(l.check||[]).map(q=>({q:q.q,e:q.e,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}))}; }
+function renderCheck(t,l,c,nxt){
+  if(!(l.check||[]).length) return `<p class="muted">No check questions in this lesson.</p><div class="row"><button class="btn" data-act="lesson-done">Mark as done</button></div>`;
+  if(!ui.ck || ui.ck.lid!==l.id) startCk(l);
+  const ck=ui.ck;
+  if(ck.done){ const n=ck.qs.length;
+    return `<div class="card stack"><div class="label">Check result</div><div class="bigscore num" style="color:${c}">${ck.score}/${n}</div><p>${ck.score===n?'Full marks. This lesson is done.':'Lesson marked done. Review what you missed, then retry for a better score.'}</p>
+      <div class="row">${nxt?`<button class="btn" data-lesson="${esc(nxt.id)}">Next lesson: ${esc(nxt.title)}</button>`:'<button class="btn" data-act="lessons-back">Back to lessons</button>'}<button class="btn ghost" data-act="ck-retry">Retry check</button><button class="btn ghost" data-ltab="learn">Review notes</button></div></div>`; }
+  const q=ck.qs[ck.i], ans=ck.picked!==null;
+  const opts=q.opts.map((o,i)=>{ let cls='opt'; if(ans){ if(o.ok) cls+=' ok'; else if(i===ck.picked) cls+=' no'; } return `<button class="${cls}" data-ckopt="${i}" ${ans?'disabled':''}><span class="k">${LET[i]}</span><span>${esc(o.t)}</span></button>`; }).join('');
+  const good = ans && q.opts[ck.picked].ok;
+  return `<div class="card"><div class="label">Question ${ck.i+1} of ${ck.qs.length}</div><div class="qtext">${esc(q.q)}</div><div class="opts">${opts}</div>
+    ${ans?`<div class="note" style="margin-top:14px"><span class="verdict ${good?'ok':'no'}">${good?'Correct.':'Not quite.'}</span> ${esc(q.e||'')}</div>`:''}
+    <div class="row" style="margin-top:16px"><button class="btn" data-act="ck-next" ${ans?'':'disabled'}>${ck.i===ck.qs.length-1?'See result':'Next question'}</button></div></div>`;
+}
+
+/* ---- Practice / mock / short / review ---- */
+function topicChips(t, pool){
+  if(!ui.setup.topics || ui.setup.tid!==t.id){ ui.setup.topics=new Set(t.topics.map(x=>x.id)); ui.setup.tid=t.id; }
+  const ids = [...new Set([...t.topics.map(x=>x.id), ...pool.map(q=>q.topic)])];
+  ids.forEach(id=>{ if(!t.topics.some(x=>x.id===id)) ui.setup.topics.add(id); });
+  if(ids.length<2) return '';
+  return `<div><div class="label">Topics</div><div class="row" style="margin-top:8px">${ids.map(id=>{ const tp=topicOf(t,id); return `<button class="chip" data-topic="${esc(id)}" aria-pressed="${ui.setup.topics.has(id)}">${esc(tp.n?tp.n+'. ':'')}${esc(tp.name)}</button>`; }).join('')}</div></div>`;
+}
+function inTopics(t,q){ return !ui.setup.topics || ui.setup.tid!==t.id || ui.setup.topics.has(q.topic); }
+function renderPractice(t){
+  if(!t.mcq.length) return emptyFor('multiple-choice questions');
+  const chips=topicChips(t,t.mcq); const pool=t.mcq.filter(q=>inTopics(t,q)).length;
+  return `<div class="card stack"><div><h2 style="font-size:1.3rem">Practice questions</h2><p class="muted" style="margin-top:4px">See the answer and the reason straight after each question.</p></div>${chips}
+    <div><div class="label">How many</div><div class="row" style="margin-top:8px">${[10,20,0].map(n=>`<button class="chip" data-count="${n}" aria-pressed="${ui.setup.count===n}">${n===0?'All ('+pool+')':n}</button>`).join('')}</div></div>
+    <div class="row"><button class="btn" data-act="start-practice" ${pool?'':'disabled'}>Start practice</button><span class="muted small">${pool} questions in the selected topics</span></div></div>`;
+}
+function renderMock(t){
+  const p=prog(t.id);
+  if(!t.mcq.length && !t.sa.length) return emptyFor('questions');
+  const nm=Math.min(t.format.mcq,t.mcq.length), ns=Math.min(t.format.sa,t.sa.length);
+  return `<div class="card stack"><div><h2 style="font-size:1.3rem">Mock test</h2><p class="muted" style="margin-top:4px">${nm} multiple-choice questions spread across the topics, then ${ns} short-answer question${ns===1?'':'s'}. No feedback until the end.</p></div>
+    ${p.best?`<p class="small">Best mock score: <b class="num">${p.best.mcq}/${p.best.n}</b> MCQ${p.best.sa!=null?`, ${p.best.sa}% short-answer key points`:''}.</p>`:''}
+    ${nm<t.format.mcq||ns<t.format.sa?`<p class="small muted">This test is set to ${t.format.mcq} MCQ + ${t.format.sa} short answer, but has fewer questions so far.</p>`:''}
+    <div class="row"><button class="btn" data-act="start-mock">Start mock test</button><button class="btn quiet sm" data-tab="manage">Change the format</button></div></div>`;
+}
+function renderShort(t){
+  if(!t.sa.length) return emptyFor('short-answer questions');
+  const chips=topicChips(t,t.sa);
+  return `<div class="card stack"><div><h2 style="font-size:1.3rem">Short answer</h2><p class="muted" style="margin-top:4px">Type your answer, reveal the model answer, then tick the key points you covered. Writing it out first is what makes this work.</p></div>${chips}
+    <div class="row"><button class="btn" data-act="start-short">Start short answer</button><span class="muted small">${t.sa.filter(q=>inTopics(t,q)).length} questions</span></div></div>`;
+}
+function renderReview(t){
+  const p=prog(t.id), ms=t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===0);
+  if(!ms.length) return `<div class="card empty"><h3>Nothing to review</h3><p>Questions you get wrong in practice or mock tests collect here. Answer them correctly to clear them.</p></div>`;
+  return `<div class="card stack"><div><h2 style="font-size:1.3rem">Review misses</h2><p class="muted" style="margin-top:4px">${ms.length} question${ms.length>1?'s':''} you last answered wrong.</p></div>
+    <div class="row"><button class="btn" data-act="start-review">Practise my misses</button></div>
+    <div>${ms.map(q=>`<div class="miss">${topicTag(t,q.topic)}<div style="font-weight:700;margin:6px 0">${esc(q.q)}</div><div style="color:var(--good)">Answer: ${esc(q.o[q.a])}</div></div>`).join('')}</div></div>`;
+}
+function renderDeck(t){
+  const cards=allCards(t); if(!cards.length) return emptyFor('flashcards');
+  const p=prog(t.id);
+  if(!ui.deck || ui.deck.tid!==t.id){
+    const chips=topicChips(t,cards); const pool=cards.filter(c=>inTopics(t,c)); const unknown=pool.filter(c=>!(p.cards&&p.cards[c.id]));
+    return `<div class="card stack"><div><h2 style="font-size:1.3rem">Flashcards</h2><p class="muted" style="margin-top:4px">${cards.filter(c=>p.cards&&p.cards[c.id]).length} of ${cards.length} cards marked known.</p></div>${chips}
+      <div class="row"><button class="btn" data-act="deck-start" data-only="1" ${unknown.length?'':'disabled'}>Study ${unknown.length} not yet known</button><button class="btn ghost" data-act="deck-start" ${pool.length?'':'disabled'}>All ${pool.length} cards</button></div></div>`;
+  }
+  const d=ui.deck;
+  if(d.i>=d.order.length) return `<div class="card stack"><h3>Deck finished</h3><p>${d.got} known, ${d.again.length} to repeat.</p><div class="row">${d.again.length?`<button class="btn" data-act="deck-again">Repeat ${d.again.length}</button>`:''}<button class="btn ghost" data-act="deck-exit">Back to decks</button></div></div>`;
+  const cd=cards.find(c=>c.id===d.order[d.i]); if(!cd){ d.i++; return renderDeck(t); }
+  return `<div class="row between"><button class="btn quiet sm" data-act="deck-exit">← End deck</button>${topicTag(t,cd.topic)}</div>` + flipCard(cd, `Card ${d.i+1} of ${d.order.length}`, topicOf(t,cd.topic).c, d.flipped);
+}
+
+function mcqItem(q){ return {type:'mcq', id:q.id, topic:q.topic, q:q.q, e:q.e, opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a}))), pick:null}; }
+function saItem(s){ return {type:'sa', id:s.id, topic:s.topic, q:s.q, model:s.model, pts:s.pts||[], text:'', shown:false, ticks:(s.pts||[]).map(()=>false)}; }
+function startSess(kind, label, items, feedback){ if(!items.length) return; ui.sess={kind, label, items, i:0, feedback, done:false}; render(true); window.scrollTo(0,0); }
+function mockPick(t){
+  const by={}; shuffle(t.mcq).forEach(q=>{ (by[q.topic]=by[q.topic]||[]).push(q); });
+  const keys=shuffle(Object.keys(by)); const out=[]; const n=Math.min(t.format.mcq,t.mcq.length);
+  while(out.length<n){ for(const k of keys){ if(out.length>=n) break; if(by[k].length) out.push(by[k].shift()); } }
+  return shuffle(out);
+}
+function renderItem(t){
+  const s=ui.sess, it=s.items[s.i], total=s.items.length, pc=Math.round(s.i/total*100), last=s.i===total-1;
+  const head = `<div class="stack" style="gap:10px;margin-bottom:6px"><div class="row between"><span class="label">${esc(s.label)} · ${s.i+1} of ${total}</span>${topicTag(t,it.topic)}</div>
+    <div class="progress" role="progressbar" aria-valuenow="${pc}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pc}%"></i></div></div>`;
+  const quit = `<button class="btn ghost" data-act="quit">${s.kind==='mock'?'Finish and mark':'End session'}</button>`;
+  if(it.type==='mcq'){
+    const answered=it.pick!==null, reveal=answered&&s.feedback;
+    const opts=it.opts.map((o,i)=>{ let cls='opt'; if(reveal){ if(o.ok) cls+=' ok'; else if(i===it.pick) cls+=' no'; } else if(answered&&i===it.pick) cls+=' sel';
+      return `<button class="${cls}" data-opt="${i}" ${reveal?'disabled':''}><span class="k">${LET[i]}</span><span>${esc(o.t)}</span></button>`; }).join('');
+    let foot = reveal? `<div class="note" style="margin-top:16px"><span class="verdict ${it.opts[it.pick].ok?'ok':'no'}">${it.opts[it.pick].ok?'Correct.':'Not quite.'}</span> ${esc(it.e||'')}</div>`:'';
+    foot += `<div class="row" style="margin-top:18px"><button class="btn" data-act="next" ${answered?'':'disabled'}>${last?'Finish':'Next'}</button>${quit}<span class="muted small">Keys 1–${it.opts.length} answer, Enter goes on</span></div>`;
+    return `<div class="card">${head}<div class="qtext">${esc(it.q)}</div><div class="opts">${opts}</div>${foot}</div>`;
+  }
+  const pts = it.shown? `<div class="note" style="margin-top:16px"><div class="label" style="margin-bottom:6px">Model answer</div>${esc(it.model)}</div>
+    ${it.pts.length?`<div style="margin-top:16px"><div class="label">Tick the key points you covered</div><ul class="pts">${it.pts.map((p,i)=>`<li><label><input type="checkbox" data-tick="${i}" ${it.ticks[i]?'checked':''}><span>${esc(p)}</span></label></li>`).join('')}</ul></div>`:''}`:'';
+  return `<div class="card">${head}<div class="qtext">${esc(it.q)}</div>
+    <textarea id="sa-${esc(it.id)}-${s.i}" placeholder="Write your answer. Define the term, list the parts, apply it to the scenario, state the benefit." ${it.shown?'readonly':''} style="min-height:160px">${esc(it.text)}</textarea>
+    <div class="row" style="margin-top:14px">${it.shown?`<button class="btn" data-act="next">${last?'Finish':'Next'}</button>`:`<button class="btn" data-act="show-model">Show model answer</button>`}${quit}</div>${pts}</div>`;
+}
+function renderResults(t){
+  const s=ui.sess, mcqs=s.items.filter(i=>i.type==='mcq'), sas=s.items.filter(i=>i.type==='sa');
+  const right=mcqs.filter(i=>i.pick!==null&&i.opts[i.pick].ok).length;
+  let h = `<div class="card"><div class="grid2">`;
+  if(mcqs.length) h += `<div><div class="label">Multiple choice</div><div class="bigscore num">${right}/${mcqs.length}</div><div class="muted">${pct(right,mcqs.length)}%</div></div>`;
+  if(sas.length){ const tot=sas.reduce((a,i)=>a+i.pts.length,0), got=sas.reduce((a,i)=>a+i.ticks.filter(Boolean).length,0);
+    h += `<div><div class="label">Short-answer key points</div><div class="bigscore num">${got}/${tot}</div><div class="muted">${pct(got,tot)}% self-marked</div></div>`; }
+  h += `</div></div>`;
+  if(mcqs.length>1){ const by={}; mcqs.forEach(i=>{ by[i.topic]=by[i.topic]||{r:0,n:0}; by[i.topic].n++; if(i.pick!==null&&i.opts[i.pick].ok) by[i.topic].r++; });
+    h += `<div class="card"><div class="label" style="margin-bottom:12px">By topic</div><div class="bars">${Object.keys(by).map(k=>{ const tp=topicOf(t,k), v=pct(by[k].r,by[k].n);
+      return `<div class="bar" style="--tc:${v<60?'var(--bad)':tp.c}"><span class="nm">${esc(tp.name)}</span><span class="track"><i style="width:${v}%"></i></span><span class="num small">${by[k].r}/${by[k].n}</span></div>`; }).join('')}</div></div>`; }
+  const wrong=mcqs.filter(i=>!(i.pick!==null&&i.opts[i.pick].ok));
+  if(wrong.length) h += `<div class="card"><div class="label" style="margin-bottom:6px">Questions to revisit (${wrong.length})</div>${wrong.map(i=>`<div class="miss">${topicTag(t,i.topic)}<div style="font-weight:700;margin:6px 0">${esc(i.q)}</div>${i.pick!==null?`<div style="color:var(--bad)">Your answer: ${esc(i.opts[i.pick].t)}</div>`:'<div class="muted">Not answered</div>'}<div style="color:var(--good)">Correct: ${esc(i.opts.find(o=>o.ok).t)}</div><div class="muted small" style="margin-top:4px">${esc(i.e||'')}</div></div>`).join('')}</div>`;
+  else if(mcqs.length) h += `<div class="card"><b>No misses.</b> Every multiple-choice answer was correct.</div>`;
+  return `<div class="stack">${h}<div class="row"><button class="btn" data-act="sess-close">Done</button>${wrong.length?'<button class="btn ghost" data-act="retry-wrong">Retry the misses</button>':''}</div></div>`;
+}
+function finishSess(){
+  const s=ui.sess, t=getTest(ui.tid); s.done=true;
+  const mcqs=s.items.filter(i=>i.type==='mcq'&&i.pick!==null), sas=s.items.filter(i=>i.type==='sa');
+  const all=s.items.filter(i=>i.type==='mcq'); const right=all.filter(i=>i.pick!==null&&i.opts[i.pick].ok).length;
+  const tot=sas.reduce((a,i)=>a+i.pts.length,0), got=sas.reduce((a,i)=>a+i.ticks.filter(Boolean).length,0);
+  editProg(t.id, p=>{
+    mcqs.forEach(i=>{ p.mcq[i.id] = i.opts[i.pick].ok?1:0; });
+    if(all.length || sas.length){ p.hist.push({at:Date.now(), kind:s.label, score: all.length?right:got, n: all.length?all.length:tot}); p.hist=p.hist.slice(-40); }
+    if(s.kind==='mock'){ const sa = tot?pct(got,tot):null; const b=p.best;
+      if(!b || right/Math.max(all.length,1) > b.mcq/Math.max(b.n,1) || (right/Math.max(all.length,1)===b.mcq/Math.max(b.n,1) && (sa||0)>(b.sa||0))) p.best={mcq:right,n:all.length,sa}; }
+  }, 0);
+  render(true); window.scrollTo(0,0);
+}
+
+/* ============ Manage content ============ */
+function topicSelect(t, id){ return `<select id="${id}">${t.topics.map(tp=>`<option value="${esc(tp.id)}">${esc(tp.name)}</option>`).join('')}${t.topics.length?'':'<option value="">General</option>'}</select>`; }
+function renderManage(t){
+  const tid=t.id;
+  let h = `<section class="card stack"><h2 style="font-size:1.2rem">Test details</h2>
+    <div class="grid2"><label class="f">Test name<input type="text" id="ed-name-${tid}" value="${esc(t.name)}"></label><label class="f">Test date<input type="date" id="ed-date-${tid}" value="${esc(t.date)}"></label></div>
+    <div class="grid2"><label class="f">Mock test: multiple-choice questions<input type="number" min="0" max="200" id="ed-fm-${tid}" value="${t.format.mcq}"></label><label class="f">Mock test: short-answer questions<input type="number" min="0" max="20" id="ed-fs-${tid}" value="${t.format.sa}"></label></div>
+    <div><button class="btn" data-act="save-details">Save details</button></div></section>`;
+  h += `<section class="card stack"><div><h2 style="font-size:1.2rem">Topics</h2><p class="muted small" style="margin-top:4px">Topics group lessons and questions, and drive the readiness bars.</p></div>
+    <div class="stack" style="gap:8px">${t.topics.map((tp,i)=>`<div class="row" style="flex-wrap:nowrap"><span class="tag" style="--tc:${COLORS[i%COLORS.length]}">${i+1}</span><input type="text" id="tp-${esc(tp.id)}" value="${esc(tp.name)}" aria-label="Topic ${i+1} name"><button class="btn quiet sm" data-act="del-topic" data-id="${esc(tp.id)}" aria-label="Remove topic">Remove</button></div>`).join('')}</div>
+    <div class="row" style="flex-wrap:nowrap"><input type="text" id="tp-new-${tid}" placeholder="New topic name"><button class="btn ghost" data-act="add-topic">Add</button></div>
+    ${t.topics.length?'<div><button class="btn ghost sm" data-act="save-topics">Save topic names</button></div>':''}</section>`;
+  // Add content
+  const types=[['mcq','Multiple choice'],['sa','Short answer'],['card','Flashcard'],['lesson','Lesson'],['gen','Generate from notes'],['import','Import JSON']];
+  h += `<section class="card stack"><h2 style="font-size:1.2rem">Add content</h2><div class="seg">${types.map(([k,l])=>`<button class="chip" data-addtype="${k}" aria-pressed="${ui.addType===k}">${l}</button>`).join('')}</div>${renderAddForm(t)}</section>`;
+  // Content lists
+  const list=(title,arr,fmt,kind)=>`<details class="card"><summary><span>${title} <span class="muted num">(${arr.length})</span></span></summary><div class="items">${arr.length?arr.map(x=>`<div class="item"><div class="t">${fmt(x)}</div><button class="btn quiet sm" data-act="del-item" data-kind="${kind}" data-id="${esc(x.id)}">Delete</button></div>`).join(''):'<p class="muted">None yet.</p>'}</div></details>`;
+  h += list('Lessons', t.lessons, l=>`${topicTag(t,l.topic)} <b>${esc(l.title)}</b> <span class="muted small">${(l.points||[]).length} points · ${(l.cards||[]).length} cards · ${(l.check||[]).length} checks</span>`, 'lessons');
+  h += list('Multiple-choice questions', t.mcq, q=>`${topicTag(t,q.topic)} ${esc(q.q)} <span class="muted small">→ ${esc(q.o[q.a])}</span>`, 'mcq');
+  h += list('Short-answer questions', t.sa, q=>`${topicTag(t,q.topic)} ${esc(q.q)}`, 'sa');
+  h += list('Extra flashcards', t.cards, c=>`${topicTag(t,c.topic)} <b>${esc(c.f)}</b> <span class="muted small">${esc(c.b)}</span>`, 'cards');
+  h += `<section class="card row between"><div><b>Delete this test</b><p class="muted small">Removes its content and your progress for it.</p></div><button class="btn danger" data-act="ask-del-test">Delete test</button></section>`;
+  return h;
+}
+const IMPORT_SHAPE = `{
+  "lessons": [{ "topic": "Topic name", "title": "Lesson title", "blurb": "One line",
+    "points": [{ "h": "Heading", "b": "Explanation" }],
+    "cards": [["Front", "Back"]],
+    "check": [{ "q": "Question", "o": ["A","B","C","D"], "a": 0, "e": "Why" }] }],
+  "mcq": [{ "topic": "Topic name", "q": "Question", "o": ["A","B","C","D"], "a": 0, "e": "Why" }],
+  "sa":  [{ "topic": "Topic name", "q": "Question", "model": "Model answer", "pts": ["Key point"] }],
+  "cards": [{ "topic": "Topic name", "f": "Front", "b": "Back" }]
+}`;
+function renderAddForm(t){
+  const tid=t.id, k=ui.addType;
+  if(k==='mcq') return `<div class="stack"><label class="f">Topic${topicSelect(t,'a-mcq-topic-'+tid)}</label><label class="f">Question<textarea id="a-mcq-q-${tid}" style="min-height:70px"></textarea></label>
+    <div class="stack" style="gap:8px"><div class="label">Options (select the correct one)</div>${[0,1,2,3].map(i=>`<div class="optrow"><input type="radio" name="a-mcq-a" id="a-mcq-r${i}-${tid}" ${i===0?'checked':''} aria-label="Option ${LET[i]} is correct"><input type="text" id="a-mcq-o${i}-${tid}" placeholder="Option ${LET[i]}${i>1?' (optional)':''}"></div>`).join('')}</div>
+    <label class="f">Explanation <span class="hint">Shown after answering</span><input type="text" id="a-mcq-e-${tid}"></label><div><button class="btn" data-act="add-mcq">Add question</button></div></div>`;
+  if(k==='sa') return `<div class="stack"><label class="f">Topic${topicSelect(t,'a-sa-topic-'+tid)}</label><label class="f">Question<textarea id="a-sa-q-${tid}" style="min-height:70px"></textarea></label>
+    <label class="f">Model answer<textarea id="a-sa-m-${tid}"></textarea></label><label class="f">Key points <span class="hint">One per line. You tick these off when self-marking.</span><textarea id="a-sa-p-${tid}"></textarea></label><div><button class="btn" data-act="add-sa">Add question</button></div></div>`;
+  if(k==='card') return `<div class="stack"><label class="f">Topic${topicSelect(t,'a-c-topic-'+tid)}</label><div class="grid2"><label class="f">Front<textarea id="a-c-f-${tid}" style="min-height:80px"></textarea></label><label class="f">Back<textarea id="a-c-b-${tid}" style="min-height:80px"></textarea></label></div><div><button class="btn" data-act="add-card">Add flashcard</button></div></div>`;
+  if(k==='lesson') return `<div class="stack"><div class="grid2"><label class="f">Topic${topicSelect(t,'a-l-topic-'+tid)}</label><label class="f">Lesson title<input type="text" id="a-l-t-${tid}"></label></div>
+    <label class="f">One-line summary<input type="text" id="a-l-s-${tid}"></label>
+    <label class="f">Key points <span class="hint">Separate points with a blank line. The first line of each point is its heading. Start lines with "- " for bullets.</span><textarea id="a-l-p-${tid}" style="min-height:160px" placeholder="IT governance&#10;The system by which the use of IT is directed and controlled.&#10;&#10;Four pillars&#10;- Strategic Management&#10;- Benefits Realization"></textarea></label>
+    <label class="f">Flashcards <span class="hint">Optional. One per line: front | back</span><textarea id="a-l-c-${tid}" placeholder="Define IT governance | The system by which IT is directed and controlled"></textarea></label>
+    <div><button class="btn" data-act="add-lesson">Add lesson</button></div></div>`;
+  if(k==='gen'){
+    if(!sampleFn) return `<p class="muted">Generating from notes needs Claude, which isn't available in this view. Open the page on claude.ai while signed in, or use Import JSON instead.</p>`;
+    const g=ui.gen;
+    let h = `<div class="stack"><p class="muted small">Paste lecture notes or slide text. Claude writes lessons, flashcards and questions using only what you paste. It uses your Claude usage.</p>
+      <label class="f">Notes<textarea id="g-notes-${tid}" style="min-height:200px" placeholder="Paste the text of your slides or notes here"></textarea></label>
+      <div class="grid3"><label class="f">Topic<select id="g-topic-${tid}"><option value="">Detect from notes</option>${t.topics.map(tp=>`<option value="${esc(tp.id)}">${esc(tp.name)}</option>`).join('')}</select></label>
+      <label class="f">Multiple choice<input type="number" id="g-m-${tid}" min="0" max="40" value="12"></label><label class="f">Short answer<input type="number" id="g-s-${tid}" min="0" max="10" value="3"></label></div>
+      <div class="row">${g&&g.busy?`<button class="btn" disabled>Writing…</button><button class="btn ghost" data-act="gen-stop">Stop</button><span class="muted small">${esc(g.status||'Thinking…')}</span>`:`<button class="btn" data-act="gen-run">Generate</button>`}</div>`;
+    if(g&&g.error) h += `<p style="color:var(--bad)">${esc(g.error)}</p>`;
+    if(g&&g.result){ const r=g.result; h += `<div class="note"><b>Ready to add:</b> ${(r.lessons||[]).length} lessons, ${(r.mcq||[]).length} multiple-choice, ${(r.sa||[]).length} short-answer questions. Check them in the lists below after adding; delete anything that looks wrong.</div><div class="row"><button class="btn" data-act="gen-add">Add to this test</button><button class="btn ghost" data-act="gen-discard">Discard</button></div>`; }
+    return h + `</div>`;
+  }
+  return `<div class="stack"><p class="muted small">Paste JSON in this shape. Topics are matched by name; new names become new topics. You can ask Claude in chat to turn your slides into this format.</p>
+    <pre class="code">${esc(IMPORT_SHAPE)}</pre><div><button class="btn ghost sm" data-act="copy-shape">Copy format</button></div>
+    <label class="f">JSON<textarea id="imp-${tid}" style="min-height:160px;font-family:ui-monospace,Consolas,monospace;font-size:.85rem"></textarea></label><div><button class="btn" data-act="import">Import</button></div></div>`;
+}
+const val = id => { const el=document.getElementById(id); return el? el.value.trim() : ''; };
+function clean(data, t){ // normalise imported/generated content; returns {data, newTopics}
+  const topics = clone(t.topics); const byName = n => { n=String(n||'').trim(); if(!n) return topics[0]?topics[0].id:'g';
+    let x=topics.find(tp=>tp.name.toLowerCase()===n.toLowerCase()); if(!x){ x={id:rid('tp'),name:n}; topics.push(x); } return x.id; };
+  const fixedTopic = data.__topic;
+  const T = o => fixedTopic || byName(o.topic);
+  const okMcq = q => q && q.q && Array.isArray(q.o) && q.o.length>=2 && Number.isInteger(+q.a) && +q.a>=0 && +q.a<q.o.length;
+  const out = {
+    lessons:(data.lessons||[]).filter(l=>l&&l.title).map(l=>({id:rid('l'), topic:T(l), title:String(l.title), blurb:String(l.blurb||''),
+      points:(l.points||[]).filter(p=>p&&(p.h||p.b)).map(p=>({h:String(p.h||''),b:String(p.b||'')})),
+      cards:(l.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),f:String(c.f),b:String(c.b)})),
+      check:(l.check||[]).filter(okMcq).map(q=>({q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')}))})),
+    mcq:(data.mcq||[]).filter(okMcq).map(q=>({id:rid('q'),topic:T(q),q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')})),
+    sa:(data.sa||[]).filter(s=>s&&s.q).map(s=>({id:rid('s'),topic:T(s),q:String(s.q),model:String(s.model||''),pts:(s.pts||[]).map(String)})),
+    cards:(data.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),topic:T(c),f:String(c.f),b:String(c.b)}))
+  };
+  return {out, topics};
+}
+function ingest(t, data){
+  const {out, topics} = clean(data, t);
+  const n = out.lessons.length+out.mcq.length+out.sa.length+out.cards.length;
+  if(!n) return 0;
+  editTest(t.id, d=>{ d.topics=topics; ['lessons','mcq','sa','cards'].forEach(k=>{ d[k]=[...(d[k]||[]), ...out[k]]; }); if(!d.moduleId) d.moduleId=t.moduleId; });
+  return n;
+}
+async function runGen(t){
+  const notes=val('g-notes-'+t.id); if(notes.length<80){ ui.gen={error:'Paste a bit more text first (at least a paragraph).'}; render(); return; }
+  const nm=Math.max(0,Math.min(40,+val('g-m-'+t.id)||0)), ns=Math.max(0,Math.min(10,+val('g-s-'+t.id)||0)), tsel=val('g-topic-'+t.id);
+  const tnames = t.topics.map(x=>x.name);
+  const prompt = `You are writing exam revision material for a university student from their lecture notes. Use ONLY facts stated in the notes below; do not add outside knowledge.
+Reply with only one JSON object in exactly this shape:
+{"lessons":[{"topic":"...","title":"...","blurb":"one line","points":[{"h":"short heading","b":"2-4 sentence plain-text explanation"}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
+ "mcq":[{"topic":"...","q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}],
+ "sa":[{"topic":"...","q":"...","model":"model answer of 3-6 sentences","pts":["key point a marker looks for"]}]}
+Rules:
+- One lesson per major section of the notes (at most 6). Each lesson: 3-5 points, 4-6 flashcards, exactly 3 check questions.
+- Exactly ${nm} items in "mcq" and ${ns} in "sa". Short-answer questions should include scenario questions that ask the student to apply the concepts.
+- "a" is the 0-based index of the correct option. Vary the position of the correct option. Distractors must be plausible and drawn from the notes (confusable terms make good distractors).
+- Plain text only, no markdown or HTML.
+- ${tsel? 'Use "'+(t.topics.find(x=>x.id===tsel)||{}).name+'" as the topic for everything.' : tnames.length? 'For "topic", use one of these names when it fits: '+JSON.stringify(tnames)+'. Otherwise use a short new topic name.' : 'For "topic", use a short name for the section of the notes it comes from.'}
+
+NOTES:
+"""
+${notes.slice(0,150000)}
+"""`;
+  const ctl = new AbortController(); ui.gen={busy:true, ctl, status:'Thinking… this can take a minute or two.'}; render();
+  try{
+    const data = await sampleFn.json(prompt, {signal:ctl.signal, cache:false, onText:({text})=>{ if(ui.gen&&ui.gen.busy){ ui.gen.status='Writing… '+text.length.toLocaleString()+' characters'; const s=document.querySelector('.gen-status'); render(); } }});
+    if(!data || typeof data!=='object') throw {code:'invalid_json'};
+    if(tsel) data.__topic=tsel;
+    ui.gen={result:data};
+  }catch(e){
+    const c=e&&e.code; ui.gen = c==='cancelled'? null : {error: c==='not_granted'||c==='sampling_disabled'? 'Claude isn\'t allowed for this page, so generation is off. Use Import JSON instead.' :
+      c==='rate_limited'? 'You have hit a usage limit. Try again later.' : c==='invalid_json'? 'Claude\'s answer could not be read as questions. Try again, or ask for fewer questions.' :
+      c==='prompt_too_large'? 'The notes are too long. Paste one topic at a time.' : 'Generation failed. Try again in a moment.'};
+    if(c==='not_granted'||c==='sampling_disabled') sampleFn=null;
+  }
+  render();
+}
+
+/* ============ Modals ============ */
+function renderModal(){
+  const m=ui.modal;
+  if(m.kind==='newModule'||m.kind==='editModule'){ const md = m.kind==='editModule'? getModule(ui.mid):{name:'',code:''};
+    return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><form class="card stack" data-form="${m.kind}"><h2 id="mh" style="font-size:1.3rem">${m.kind==='newModule'?'New module':'Edit module'}</h2>
+      <label class="f">Module name<input type="text" id="mm-name" value="${esc(md.name)}" placeholder="e.g. Data Analytics for Business" required></label>
+      <label class="f">Course code <span class="hint">Optional</span><input type="text" id="mm-code" value="${esc(md.code||'')}" placeholder="e.g. ICT3201"></label>
+      <div class="row between"><div class="row"><button class="btn" type="submit">${m.kind==='newModule'?'Create module':'Save'}</button><button class="btn ghost" type="button" data-act="close-modal">Cancel</button></div>
+      ${m.kind==='editModule'?'<button class="btn quiet sm" type="button" data-act="ask-del-module" style="color:var(--bad)">Delete module</button>':''}</div></form></div>`; }
+  if(m.kind==='newTest') return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><form class="card stack" data-form="newTest"><h2 id="mh" style="font-size:1.3rem">New test</h2><p class="muted small">In ${esc((getModule(m.mid)||{}).name||'')}</p>
+      <label class="f">Test name<input type="text" id="mt-name" placeholder="e.g. Midterm, Quiz 2, Final exam" required></label>
+      <label class="f">Test date <span class="hint">Optional, adds a countdown</span><input type="date" id="mt-date"></label>
+      <div class="grid2"><label class="f">MCQs in the test<input type="number" id="mt-m" min="0" max="200" value="15"></label><label class="f">Short-answer questions<input type="number" id="mt-s" min="0" max="20" value="3"></label></div>
+      <label class="f">Topics covered <span class="hint">One per line, optional</span><textarea id="mt-topics" placeholder="Topic 5: Risk Optimization&#10;Topic 6: Resource Optimization"></textarea></label>
+      <div class="row"><button class="btn" type="submit">Create test</button><button class="btn ghost" type="button" data-act="close-modal">Cancel</button></div></form></div>`;
+  if(m.kind==='confirm') return `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><div class="card stack"><h2 id="mh" style="font-size:1.25rem">${esc(m.title)}</h2><p>${esc(m.text)}</p>
+      <div class="row"><button class="btn danger" data-act="${m.act}">${esc(m.ok)}</button><button class="btn ghost" data-act="close-modal">Cancel</button></div></div></div>`;
+  return '';
+}
+
+/* ============ Events ============ */
+function curTest(){ return ui.page==='test'? getTest(ui.tid) : null; }
+document.addEventListener('submit', e=>{
+  const f=e.target.closest('[data-form]'); if(!f) return; e.preventDefault();
+  const kind=f.dataset.form;
+  if(kind==='newModule'||kind==='editModule'){ const name=val('mm-name'), code=val('mm-code'); if(!name) return;
+    if(kind==='newModule'){ const id=rid('m'); put('m_'+id, {name, code, color:getModules().length%COLORS.length, created:Date.now()}); ui.modal=null; go('module',{mid:id}); toast('Module created'); }
+    else { const d=clone(docs['m_'+ui.mid])||{}; d.name=name; d.code=code; put('m_'+ui.mid,d); ui.modal=null; render(); toast('Saved'); } }
+  if(kind==='newTest'){ const name=val('mt-name'); if(!name) return; const mid=ui.modal.mid; const id=rid('t');
+    const topics=val('mt-topics').split('\n').map(s=>s.trim()).filter(Boolean).map(n=>({id:rid('tp'),name:n}));
+    put('t_'+id, {moduleId:mid, name, date:val('mt-date'), format:{mcq:Math.max(0,+val('mt-m')||0), sa:Math.max(0,+val('mt-s')||0)}, topics, lessons:[], mcq:[], sa:[], cards:[], created:Date.now()});
+    ui.modal=null; ui.addType='gen'; go('test',{tid:id, tab:'manage'}); toast('Test created. Now add some content.'); }
+});
+document.addEventListener('click', e=>{
+  const el = e.target.closest('[data-go],[data-tab],[data-act],[data-lesson],[data-ltab],[data-step],[data-pt],[data-opt],[data-ckopt],[data-topic],[data-count],[data-addtype],input[data-tick]');
+  if(!el) return;
+  const t = curTest();
+  if(el.dataset.tick!==undefined){ ui.sess.items[ui.sess.i].ticks[+el.dataset.tick]=el.checked; return; }
+  if(el.dataset.go){ const g=el.dataset.go; if(g==='home') go('home'); else if(g==='module') go('module',{mid:el.dataset.mid}); else go('test',{tid:el.dataset.tid, tab:el.dataset.tab||'overview'}); return; }
+  if(el.dataset.tab){ Object.assign(ui,{tab:el.dataset.tab, sess:null, lid:null, deck:null, fc:null, ck:null}); render(true); window.scrollTo(0,0); return; }
+  if(el.dataset.lesson){ Object.assign(ui,{lid:el.dataset.lesson, ltab:'learn', fc:null, ck:null, open:{}}); render(true); window.scrollTo(0,0); return; }
+  if(el.dataset.ltab){ ui.ltab=el.dataset.ltab; render(true); window.scrollTo(0,0); return; }
+  if(el.dataset.step){ const [k,j]=el.dataset.step.split('|'); ui.sel[k]=+j; render(); return; }
+  if(el.dataset.pt){ if(ui.recall){ ui.open[el.dataset.pt]=!ui.open[el.dataset.pt]; render(); } return; }
+  if(el.dataset.topic){ const id=el.dataset.topic, s=ui.setup.topics; s.has(id)?s.delete(id):s.add(id); if(!s.size) s.add(id); render(); return; }
+  if(el.dataset.count!==undefined){ ui.setup.count=+el.dataset.count; render(); return; }
+  if(el.dataset.addtype){ ui.addType=el.dataset.addtype; render(true); return; }
+  if(el.dataset.opt!==undefined){ pickOpt(+el.dataset.opt); return; }
+  if(el.dataset.ckopt!==undefined){ const ck=ui.ck; if(!ck||ck.picked!==null) return; ck.picked=+el.dataset.ckopt; if(ck.qs[ck.i].opts[ck.picked].ok) ck.score++; render(); return; }
+  act(el.dataset.act, el, t);
+});
+function pickOpt(i){ const s=ui.sess; if(!s||s.done) return; const it=s.items[s.i]; if(it.type!=='mcq'||i>=it.opts.length) return; if(s.feedback&&it.pick!==null) return;
+  it.pick=i; if(s.feedback) editProg(ui.tid, p=>{ p.mcq[it.id]=it.opts[i].ok?1:0; }); render(); }
+function nextItem(){ const s=ui.sess; const it=s.items[s.i]; if(it.type==='sa'&&!it.shown){ const ta=document.getElementById('sa-'+it.id+'-'+s.i); if(ta) it.text=ta.value; }
+  if(s.i<s.items.length-1){ s.i++; render(true); window.scrollTo(0,0); } else finishSess(); }
+function lessonDone(t, lid, score){ editProg(t.id, p=>{ if(p.lessons[lid]===undefined || score>p.lessons[lid]) p.lessons[lid]=score; }, 0); }
+function act(a, el, t){
+  const l = t && ui.lid ? t.lessons.find(x=>x.id===ui.lid) : null;
+  switch(a){
+    case 'menu': ui.menu=!ui.menu; renderRail(); renderOverlay(); break;
+    case 'new-module': ui.menu=false; ui.modal={kind:'newModule'}; renderRail(); renderOverlay(); break;
+    case 'edit-module': ui.modal={kind:'editModule'}; renderOverlay(); break;
+    case 'new-test': ui.menu=false; ui.modal={kind:'newTest', mid:el.dataset.mid}; renderRail(); renderOverlay(); break;
+    case 'close-modal': ui.modal=null; renderOverlay(); break;
+    case 'ask-del-module': { const md=getModule(ui.mid); ui.modal={kind:'confirm', title:'Delete '+md.name+'?', text:'This deletes the module, its '+testsOf(md.id).length+' test(s) and all progress in them. This cannot be undone.', ok:'Delete module', act:'del-module'}; renderOverlay(); break; }
+    case 'del-module': { const mid=ui.mid; testsOf(mid).forEach(x=>delTest(x.id)); if(mid===BUILTIN_MODULE.id) put('m_'+mid,{deleted:true}); else put('m_'+mid,null); ui.modal=null; go('home'); toast('Module deleted'); break; }
+    case 'ask-del-test': ui.modal={kind:'confirm', title:'Delete '+t.name+'?', text:'This deletes the test, its content and your progress for it. This cannot be undone.', ok:'Delete test', act:'del-test'}; renderOverlay(); break;
+    case 'del-test': { const mid=t.moduleId; delTest(t.id); ui.modal=null; go('module',{mid}); toast('Test deleted'); break; }
+    case 'restore-builtin': put('m_'+BUILTIN_MODULE.id,null); put('t_'+BUILTIN_TEST_ID,null); render(); toast('Starter module restored'); break;
+    case 'lessons-back': ui.lid=null; render(true); break;
+    case 'recall': ui.recall=!ui.recall; ui.open={}; render(); break;
+    case 'lesson-done': lessonDone(t, l.id, 0); render(); toast('Lesson marked done'); break;
+    case 'flip': if(ui.deck&&ui.tab==='cards'&&!ui.lid) ui.deck.flipped=!ui.deck.flipped; else if(ui.fc) ui.fc.flipped=!ui.fc.flipped; render(); break;
+    case 'fc-got': case 'fc-miss': {
+      const good = a==='fc-got';
+      if(ui.tab==='cards' && ui.deck && !ui.lid){ const d=ui.deck, id=d.order[d.i]; editProg(t.id,p=>{ if(good) p.cards[id]=1; else delete p.cards[id]; }); if(good) d.got++; else d.again.push(id); d.i++; d.flipped=false; }
+      else { const fc=ui.fc, cd=l.cards[fc.order[fc.i]]; editProg(t.id,p=>{ if(good) p.cards[cd.id]=1; else delete p.cards[cd.id]; }); if(good) fc.got++; else fc.again.push(fc.order[fc.i]); fc.i++; fc.flipped=false; }
+      render(); break; }
+    case 'fc-again': fc_new(l.id, shuffle(ui.fc.again)); render(); break;
+    case 'fc-restart': startFc(l); render(); break;
+    case 'ck-next': { const ck=ui.ck; if(ck.i<ck.qs.length-1){ ck.i++; ck.picked=null; } else { ck.done=true; lessonDone(t,l.id,ck.score); editProg(t.id,p=>{ p.hist.push({at:Date.now(),kind:'Lesson check',score:ck.score,n:ck.qs.length}); p.hist=p.hist.slice(-40); }, 0); } render(); break; }
+    case 'ck-retry': startCk(l); render(); break;
+    case 'deck-start': { const p=prog(t.id); let pool=allCards(t).filter(c=>inTopics(t,c)); if(el.dataset.only) pool=pool.filter(c=>!(p.cards&&p.cards[c.id])); ui.deck={tid:t.id, order:shuffle(pool.map(c=>c.id)), i:0, flipped:false, got:0, again:[]}; render(true); break; }
+    case 'deck-again': ui.deck={tid:t.id, order:shuffle(ui.deck.again), i:0, flipped:false, got:0, again:[]}; render(); break;
+    case 'deck-exit': ui.deck=null; render(true); break;
+    case 'start-practice': { let pool=shuffle(t.mcq.filter(q=>inTopics(t,q))); if(ui.setup.count) pool=pool.slice(0,ui.setup.count); startSess('practice','Practice',pool.map(mcqItem),true); break; }
+    case 'start-mock': { const sa=shuffle(t.sa).slice(0,Math.min(t.format.sa,t.sa.length)); startSess('mock','Mock test',mockPick(t).map(mcqItem).concat(sa.map(saItem)),false); break; }
+    case 'start-short': startSess('short','Short answer',shuffle(t.sa.filter(q=>inTopics(t,q))).map(saItem),false); break;
+    case 'start-review': { const p=prog(t.id); startSess('review','Review',shuffle(t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===0)).map(mcqItem),true); break; }
+    case 'retry-wrong': { const ids=new Set(ui.sess.items.filter(i=>i.type==='mcq'&&!(i.pick!==null&&i.opts[i.pick].ok)).map(i=>i.id)); startSess('review','Review',shuffle(t.mcq.filter(q=>ids.has(q.id))).map(mcqItem),true); break; }
+    case 'show-model': { const s=ui.sess, it=s.items[s.i]; const ta=document.getElementById('sa-'+it.id+'-'+s.i); if(ta) it.text=ta.value; it.shown=true; render(true); break; }
+    case 'next': nextItem(); break;
+    case 'quit': finishSess(); break;
+    case 'sess-close': ui.sess=null; render(true); break;
+    case 'save-details': { const name=val('ed-name-'+t.id)||t.name; editTest(t.id,d=>{ d.name=name; d.date=val('ed-date-'+t.id); d.format={mcq:Math.max(0,+val('ed-fm-'+t.id)||0), sa:Math.max(0,+val('ed-fs-'+t.id)||0)}; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Details saved'); break; }
+    case 'save-topics': { editTest(t.id,d=>{ d.topics=t.topics.map(tp=>({id:tp.id,name:val('tp-'+tp.id)||tp.name})); }); render(); toast('Topics saved'); break; }
+    case 'add-topic': { const n=val('tp-new-'+t.id); if(!n) return; editTest(t.id,d=>{ d.topics=[...t.topics,{id:rid('tp'),name:n}]; }); render(true); toast('Topic added'); break; }
+    case 'del-topic': { const id=el.dataset.id; editTest(t.id,d=>{ d.topics=t.topics.filter(x=>x.id!==id); }); render(true); break; }
+    case 'del-item': { const kind=el.dataset.kind, id=el.dataset.id; editTest(t.id,d=>{ if(id.startsWith('b-')) d.removed=[...(d.removed||[]),id]; else d[kind]=(d[kind]||[]).filter(x=>x.id!==id); }); render(); toast('Deleted'); break; }
+    case 'add-mcq': { const q=val('a-mcq-q-'+t.id); const opts=[0,1,2,3].map(i=>val('a-mcq-o'+i+'-'+t.id)); let ai=[0,1,2,3].find(i=>{const r=document.getElementById('a-mcq-r'+i+'-'+t.id); return r&&r.checked;});
+      const kept=[]; let a=-1; opts.forEach((o,i)=>{ if(o){ if(i===ai) a=kept.length; kept.push(o); } });
+      if(!q||kept.length<2){ toast('Add a question and at least two options'); return; } if(a<0){ toast('Select the correct option'); return; }
+      ingestOne(t,{mcq:[{q,o:kept,a,e:val('a-mcq-e-'+t.id)}]}, val('a-mcq-topic-'+t.id)); break; }
+    case 'add-sa': { const q=val('a-sa-q-'+t.id); if(!q){ toast('Add a question'); return; } ingestOne(t,{sa:[{q,model:val('a-sa-m-'+t.id),pts:val('a-sa-p-'+t.id).split('\n').map(s=>s.trim()).filter(Boolean)}]}, val('a-sa-topic-'+t.id)); break; }
+    case 'add-card': { const f=val('a-c-f-'+t.id), b=val('a-c-b-'+t.id); if(!f||!b){ toast('Fill in both sides'); return; } ingestOne(t,{cards:[{f,b}]}, val('a-c-topic-'+t.id)); break; }
+    case 'add-lesson': { const title=val('a-l-t-'+t.id); if(!title){ toast('Give the lesson a title'); return; }
+      const points=val('a-l-p-'+t.id).split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean).map(b=>{ const ls=b.split('\n'); return {h:ls[0], b:ls.slice(1).join('\n')}; });
+      const cards=val('a-l-c-'+t.id).split('\n').map(x=>x.split('|')).filter(x=>x.length>=2&&x[0].trim()&&x[1].trim()).map(x=>[x[0].trim(),x.slice(1).join('|').trim()]);
+      ingestOne(t,{lessons:[{title,blurb:val('a-l-s-'+t.id),points,cards,check:[]}]}, val('a-l-topic-'+t.id)); break; }
+    case 'import': { let data; try{ data=JSON.parse(val('imp-'+t.id)); }catch(err){ toast('That is not valid JSON'); return; }
+      if(Array.isArray(data)) data={mcq:data}; const n=ingest(t,data); if(n){ const el2=document.getElementById('imp-'+t.id); if(el2) el2.value=''; render(); toast('Imported '+n+' items'); } else toast('Nothing in that JSON matched the format'); break; }
+    case 'copy-shape': { try{ navigator.clipboard.writeText(IMPORT_SHAPE).then(()=>toast('Format copied'),()=>toast('Select the text to copy it')); }catch(err){ toast('Select the text to copy it'); } break; }
+    case 'gen-run': runGen(t); break;
+    case 'gen-stop': if(ui.gen&&ui.gen.ctl) ui.gen.ctl.abort(); break;
+    case 'gen-add': { const n=ingest(t, ui.gen.result); ui.gen=null; const ta=document.getElementById('g-notes-'+t.id); if(ta) ta.value=''; render(); toast(n?'Added '+n+' items':'Nothing usable in that answer'); break; }
+    case 'gen-discard': ui.gen=null; render(); break;
+  }
+}
+function ingestOne(t, data, topicId){ if(topicId) data.__topic=topicId; const n=ingest(t,data); if(n){ render(true); toast('Added'); } }
+function delTest(tid){ if(tid===BUILTIN_TEST_ID) put('t_'+tid,{deleted:true}); else put('t_'+tid,null); put('p_'+tid,null); }
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && (ui.modal||ui.menu)){ ui.modal=null; ui.menu=false; renderRail(); renderOverlay(); return; }
+  const tag=(document.activeElement||{}).tagName; if(tag==='TEXTAREA'||tag==='INPUT'||tag==='SELECT'||ui.modal) return;
+  const s=ui.sess;
+  if(s && !s.done){ const it=s.items[s.i]; if(it.type!=='mcq') return;
+    if(e.key>='1'&&e.key<='6'){ pickOpt(+e.key-1); } else if(e.key==='Enter'&&it.pick!==null&&tag!=='BUTTON'){ e.preventDefault(); nextItem(); } return; }
+  if((e.key===' '||e.code==='Space') && tag!=='BUTTON'){
+    const deckOn = ui.tab==='cards'&&ui.deck&&!ui.lid&&ui.deck.i<ui.deck.order.length; const fcOn = ui.lid&&ui.ltab==='cards'&&ui.fc&&ui.fc.i<ui.fc.order.length;
+    if(deckOn){ e.preventDefault(); ui.deck.flipped=!ui.deck.flipped; render(); } else if(fcOn){ e.preventDefault(); ui.fc.flipped=!ui.fc.flipped; render(); }
+  }
+});
+window.addEventListener('hashchange', ()=>{ const before=routeKey(); readHash(); if(routeKey()!==before){ ui.sess=null; render(true); } });
+
+/* ============ Boot ============ */
+readHash();
+render(true);
+initStore();
+(async()=>{ try{ if(window.claude&&window.claude.use){ sampleFn = await claude.use('sample'); if(ui.page==='test'&&ui.tab==='manage') render(); } }catch(e){} })();
+</script>
