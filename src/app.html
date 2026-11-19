@@ -212,7 +212,7 @@ button{cursor:pointer}
 .qtext{font-family:var(--display);font-size:1.28rem;font-weight:700;line-height:1.35;margin:10px 0 18px}
 .opts{display:flex;flex-direction:column;gap:10px}
 .opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:11px;padding:12px 14px}
-.opt:hover:not(:disabled){border-color:var(--accent)}
+@media (hover:hover){.opt:hover:not(:disabled):not(.sel){border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}}
 .opt .k{flex:none;width:27px;height:27px;border-radius:7px;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.85rem;font-weight:700;color:var(--muted)}
 .opt.sel{border-color:var(--accent);background:var(--accent-soft)}
 .opt.ok{border-color:var(--good);background:var(--good-bg)} .opt.ok .k{background:var(--good);border-color:var(--good);color:#fff}
@@ -826,7 +826,10 @@ async function runFocus(t){
     const r = res&&typeof res==='object' ? res : {};
     const tp = String(r.topic||ask).slice(0,60);
     const withTopic = arr => (Array.isArray(arr)?arr:[]).map(x=>Object.assign({topic:tp}, x&&typeof x==='object'?x:{}, {topic:tp}));
-    const {out, topics} = clean({lessons:withTopic(r.lessons), mcq:withTopic(r.mcq), sa:withTopic(r.sa), traps:r.traps||[]}, t1);
+    const fixMcq = q => { if(!q||typeof q!=='object') return q; const o=q.o||q.options||q.choices; let a=q.a!==undefined?q.a:(q.answer!==undefined?q.answer:q.correct);
+      if(typeof a==='string' && Array.isArray(o)){ const L='ABCDEF'.indexOf(a.trim().toUpperCase()); a = a.trim().length===1&&L>=0 ? L : o.findIndex(x=>String(x).trim()===a.trim()); }
+      return Object.assign({}, q, {q:q.q||q.question, o, a, e:q.e||q.explanation||''}); };
+    const {out, topics} = clean({lessons:withTopic(r.lessons), mcq:withTopic((Array.isArray(r.mcq)?r.mcq:[]).map(fixMcq)), sa:withTopic(r.sa), traps:r.traps||[]}, t1);
     if(!out.lessons.length && !out.mcq.length && !out.sa.length){ j.error = r.missing ? 'Your notes don\'t cover this: '+String(r.missing)+' Turn on "Also use general knowledge" or add materials that cover it.' : 'Claude didn\'t return anything for that. Try wording it differently.'; }
     else {
       const key='c_'+t.id+'_'+rid('');
