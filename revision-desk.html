@@ -42,6 +42,7 @@ button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 .shell{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}
 .rail{background:var(--surface);border-right:1px solid var(--line);position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto;display:flex;flex-direction:column;padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:14px}
@@ -53,13 +54,15 @@ button{cursor:pointer}
 .brand small{color:var(--muted);font-size:.8rem}
 .navlink{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-radius:9px;padding:9px 10px;text-align:left;font-weight:700;color:var(--muted)}
 .navlink:hover{background:var(--sunk);color:var(--ink)}
-.navlink[aria-current="true"]{background:var(--accent-soft);color:var(--ink)}
+.navlink[aria-current="true"]{background:var(--accent-soft);color:var(--ink);box-shadow:inset 3px 0 0 var(--accent)}
+.navlink{transition:background .15s,color .15s}
+.ttest[aria-current="true"]{color:var(--accent)}
 .railhead{font-size:.72rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:22px 10px 6px;display:flex;justify-content:space-between;align-items:center}
 .railhead button{background:none;border:0;color:var(--accent);font-weight:700;font-size:.78rem;letter-spacing:0;text-transform:none;padding:2px 4px}
 .tree{display:flex;flex-direction:column;gap:2px}
 .tmod{font-weight:700}
 .tmod .dot{width:10px;height:10px;border-radius:3px;background:var(--mc);flex:none}
-.ttest{padding-left:30px;font-weight:400;font-size:.94rem;justify-content:space-between}
+.ttest{padding-left:30px;border-radius:0 9px 9px 0;margin-left:14px;width:calc(100% - 14px);border-left:1px solid var(--line);font-weight:400;font-size:.94rem;justify-content:space-between}
 .ttest .when{font-size:.75rem;color:var(--muted);white-space:nowrap}
 .railfoot{margin-top:auto;padding:14px 10px 0;font-size:.8rem;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
 .railfoot i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none;margin-top:6px}
@@ -128,13 +131,32 @@ button{cursor:pointer}
 .act{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .act:first-child{border-top:0}
 .act .sc{font-family:var(--display);font-weight:800}
+.badge svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .badge{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-weight:800;font-size:.8rem;font-family:var(--display)}
 
 /* test workspace */
-.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:thin}
-.tabs button{flex:none;background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;font-weight:700;color:var(--muted);margin-bottom:-1px;white-space:nowrap}
-.tabs button[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-.tabs button .n{font-size:.75rem;background:var(--sunk);border-radius:99px;padding:1px 7px;margin-left:4px;color:var(--muted)}
+.tabnav{position:sticky;top:max(8px,env(safe-area-inset-top,0px));z-index:20;display:flex;flex-wrap:wrap;align-items:center;gap:6px;scrollbar-width:none;padding:6px;background:color-mix(in srgb,var(--surface) 90%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.tabnav::-webkit-scrollbar{display:none}
+.tgseg{display:flex;gap:2px;background:var(--sunk);border-radius:11px;padding:3px;flex:none}
+.tabnav .tgseg button{padding:7px 12px;border-radius:8px;font-size:.86rem}
+.tabnav .tgseg button[aria-current="true"],.tabnav .tgseg button[aria-current="true"]:hover{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(20,26,46,.12)}
+.tgbtns{display:flex;gap:2px;flex-wrap:wrap;align-items:center;min-width:0;padding-left:6px;margin-left:2px;border-left:1px solid var(--line)}
+.tabnav button{display:inline-flex;align-items:center;gap:7px;background:none;border:0;border-radius:10px;padding:8px 11px;font-weight:700;font-size:.9rem;color:var(--muted);white-space:nowrap;transition:background .15s,color .15s}
+.tabnav button svg,.navlink svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabnav button.new{padding-right:8px}
+@media (hover:hover){.tabnav button:hover{background:var(--sunk);color:var(--ink)}}
+.tabnav button[aria-current="true"],.tabnav button[aria-current="true"]:hover{background:var(--accent);color:var(--accent-ink);box-shadow:0 2px 8px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tabnav .n{font-size:.72rem;background:var(--sunk);border-radius:99px;padding:1px 7px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tabnav button[aria-current="true"] .n{background:color-mix(in srgb,var(--accent-ink) 22%,transparent);color:var(--accent-ink)}
+.tabnav button.new::after{content:"New";font-size:.62rem;letter-spacing:.04em;text-transform:uppercase;background:var(--mark);color:var(--mark-ink);border-radius:5px;padding:1px 5px}
+/* focus */
+.focusbox{display:grid;gap:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--surface)),var(--surface) 60%)}
+.focusbox textarea{min-height:92px;font-size:1.05rem;background:var(--surface)}
+.fset{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.fset:first-child{border-top:0}
+.fset h3{font-size:1.02rem}
+.fset .row{grid-column:1/-1}
+.fpreview .point{background:var(--bg)}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 .launch{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
@@ -166,6 +188,11 @@ button{cursor:pointer}
 .recall .point:not(.open)::after{content:'Tap to reveal';display:block;font-size:.8rem;color:var(--muted);margin-top:6px}
 .switch{display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700}
 .switch[aria-pressed="true"]{background:var(--tc);color:#fff;border-color:var(--tc)}
+.switch.tg::before{content:"";width:30px;height:18px;border-radius:99px;background:var(--sunk);box-shadow:inset 0 0 0 2px var(--line);flex:none;transition:background .15s}
+.switch.tg::after{content:"";position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted);margin-left:3px;transition:transform .15s}
+.switch.tg{position:relative}
+.switch.tg[aria-pressed="true"]::before{background:color-mix(in srgb,#fff 30%,transparent);box-shadow:none}
+.switch.tg[aria-pressed="true"]::after{background:#fff;transform:translateX(12px)}
 .vis{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
 .steps{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 12px}
 .step{border:1.5px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;font-weight:700;font-size:.93rem;display:flex;gap:8px;align-items:center;text-align:left}
@@ -259,6 +286,11 @@ details.sa summary{cursor:pointer;font-weight:700}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
   .grid3{grid-template-columns:1fr 1fr}
+  .tabnav{top:6px;border-radius:14px;flex-direction:column;align-items:stretch;overflow:hidden}
+  .tgseg{width:100%}
+  .tabnav .tgseg button{flex:1 1 0;min-width:0;justify-content:center;padding-inline:6px}
+  .tgbtns{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;border-left:0;padding-left:0;margin-left:0}
+  .tgbtns::-webkit-scrollbar{display:none}
 }
 @media (max-width:600px){
   .hero{grid-template-columns:1fr}
@@ -949,11 +981,13 @@ function render(fresh){
   if(keep){ for(const id in saved){ const el=document.getElementById(id); if(!el) continue; if(el.type==='radio'||el.type==='checkbox') el.checked=saved[id]; else el.value=saved[id]; }
     if(focus){ const el=document.getElementById(focus); if(el){ el.focus(); try{ if(selS!=null) el.setSelectionRange(selS,selE); }catch(e){} } } }
   renderOverlay(); setHash();
+  const tn=document.getElementById('tabnav'), ta=tn&&tn.querySelector('[aria-current="true"]');
+  if(ta && (ta.offsetLeft<tn.scrollLeft || ta.offsetLeft+ta.offsetWidth>tn.scrollLeft+tn.clientWidth)) tn.scrollLeft=ta.offsetLeft-24;
 }
 function renderRail(){
   const r=$('#rail'); const mods=getModules();
   let h = `<button class="brand" data-go="home"><span class="logo"><span>R</span></span><span><b>Revision Desk</b><small>Modules, tests and practice</small></span></button>
-    <div style="margin-top:16px"><button class="navlink" data-go="home" aria-current="${ui.page==='home'}">Dashboard</button></div>
+    <div style="margin-top:16px"><button class="navlink" data-go="home" aria-current="${ui.page==='home'}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>Dashboard</button></div>
     <div class="railhead"><span>Modules</span><button data-act="new-module">+ New</button></div><div class="tree">`;
   mods.forEach((md,i)=>{
     h += `<button class="navlink tmod" style="--mc:${COLORS[(md.color!=null?md.color:i)%COLORS.length]}" data-go="module" data-mid="${esc(md.id)}" aria-current="${ui.page==='module'&&ui.mid===md.id}"><span class="dot"></span><span>${esc(md.name)}</span></button>`;
@@ -1041,16 +1075,36 @@ function renderModule(){
 }
 
 /* ============ Test workspace ============ */
-const TABS = [['overview','Overview'],['guide','Study guide'],['lessons','Lessons'],['practice','Practice'],['mock','Mock test'],['short','Short answer'],['cards','Flashcards'],['review','Review misses'],['build','Add materials'],['manage','Manage content']];
+const TAB_GROUPS = [
+  ['Learn', [['overview','Overview'],['guide','Study guide'],['lessons','Lessons'],['cards','Flashcards']]],
+  ['Test yourself', [['focus','Focus'],['practice','Practice'],['mock','Mock test'],['short','Short answer'],['review','Review misses']]],
+  ['Set up', [['build','Add materials'],['manage','Manage']]]];
+const TABS = TAB_GROUPS.flatMap(g=>g[1]);
+const ICONS = {
+  overview:'<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
+  guide:'<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6M9 11h6"/>',
+  lessons:'<path d="M3 8l9-4 9 4-9 4z"/><path d="M7 10v5c0 1.5 2.2 3 5 3s5-1.5 5-3v-5"/>',
+  cards:'<rect x="3" y="7" width="13" height="14" rx="2"/><path d="M8 3h11a2 2 0 0 1 2 2v12"/>',
+  focus:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/>',
+  practice:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 9.5"/>',
+  mock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/>',
+  short:'<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  review:'<path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5"/><path d="M4 4v4h4"/>',
+  build:'<path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  manage:'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'};
+const icon = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]||''}</svg>`;
 function renderTest(){
   const t=getTest(ui.tid), md=getModule(t.moduleId), r=readiness(t), p=prog(t.id);
   const misses = t.mcq.filter(q=>p.mcq&&p.mcq[q.id]===0).length;
   const counts = {lessons:t.lessons.length, practice:t.mcq.length, short:t.sa.length, cards:allCards(t).length, review:misses};
   let h = `<div class="crumbs"><button data-go="home">Dashboard</button><span>/</span><button data-go="module" data-mid="${esc(md.id)}">${esc(md.name)}</button><span>/</span><span>${esc(t.name)}</span></div>`;
   if(!ui.sess) h += `<div class="pagehead"><div class="stack" style="gap:8px"><h1>${esc(t.name)}</h1><div class="row">${datePill(t.date)}<span class="pill">${t.format.mcq} MCQ + ${t.format.sa} short answer</span></div></div>${ring(r.pct,76)}</div>`;
-  h += `<div class="tabs" role="tablist">${TABS.map(([k,l])=>`<button role="tab" data-tab="${k}" aria-current="${ui.tab===k}">${l}${counts[k]!==undefined&&counts[k]>0?`<span class="n num">${counts[k]}</span>`:''}</button>`).join('')}</div>`;
+  counts.focus = focusSets(t).length;
+  const gi = Math.max(0, TAB_GROUPS.findIndex(g=>g[1].some(x=>x[0]===ui.tab))); ui.gtab=ui.gtab||{}; ui.gtab[gi]=ui.tab;
+  const tabBtn = ([k,l]) => `<button data-tab="${k}" aria-current="${ui.tab===k}" class="${k==='focus'&&!counts.focus?'new':''}">${icon(k)}${l}${counts[k]!==undefined&&counts[k]>0?`<span class="n">${counts[k]}</span>`:''}</button>`;
+  h += `<nav class="tabnav" aria-label="Test sections"><div class="tgseg">${TAB_GROUPS.map(([g,tabs],i)=>`<button data-tab="${ui.gtab[i]||tabs[0][0]}" aria-current="${i===gi}">${g}</button>`).join('')}</div><div class="tgbtns" id="tabnav">${TAB_GROUPS[gi][1].map(tabBtn).join('')}</div></nav>`;
   if(ui.sess) return h + (ui.sess.done? renderResults(t) : renderItem(t));
-  const f = {overview:renderOverview, guide:renderGuide, build:renderBuild, lessons:renderLessons, practice:renderPractice, mock:renderMock, short:renderShort, cards:renderDeck, review:renderReview, manage:renderManage}[ui.tab] || renderOverview;
+  const f = {overview:renderOverview, guide:renderGuide, build:renderBuild, lessons:renderLessons, practice:renderPractice, mock:renderMock, short:renderShort, cards:renderDeck, review:renderReview, manage:renderManage, focus:renderFocus}[ui.tab] || renderOverview;
   return h + f(t);
 }
 function emptyFor(what){ return `<div class="card empty"><h3>No ${what} yet</h3><p>Upload your slides or notes and Claude writes them for you, or add them by hand.</p><div class="row" style="margin-top:14px;justify-content:center"><button class="btn" data-tab="build">Add study materials</button><button class="btn ghost" data-tab="manage">Add by hand</button></div></div>`; }
@@ -1070,6 +1124,7 @@ function renderOverview(t){
         const ls=t.lessons.filter(l=>l.topic===tp.id), ld=ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length;
         return `<div class="bar" style="--tc:${COLORS[i%COLORS.length]}"><span class="nm" title="${esc(tp.name)}"><b>${i+1}</b> ${esc(tp.name)}</span><span class="track"><i style="width:${pct(ok,qs.length)}%"></i></span><span class="num small muted">${ld}/${ls.length}</span></div>`; }).join('') + `</div></section>`;
   }
+  h += `<button class="launch" data-tab="focus" style="flex-direction:row;align-items:center;gap:14px"><div class="badge" style="flex:none">${icon('focus')}</div><div style="display:flex;flex-direction:column;gap:2px"><b>Focus on something specific</b><span>Tell Claude what you want to work on and get notes and questions on just that.</span></div></button>`;
   h += traps;
   h += `<section class="card"><h2 style="font-size:1.15rem;margin-bottom:6px">Recent attempts</h2>${hist.length?`<div class="activity">${hist.map(a=>`<div class="act"><span class="badge">${esc(a.kind.slice(0,2).toUpperCase())}</span><div><b>${esc(a.kind)}</b><div class="muted small">${esc(ago(a.at))}</div></div><span class="sc num">${a.score}/${a.n}</span></div>`).join('')}</div>`:'<p class="muted">No attempts yet. Start with a lesson or a practice round.</p>'}</section>`;
   return h;
@@ -1211,6 +1266,102 @@ function renderReview(t){
     <div class="row"><button class="btn" data-act="start-review">Practise my misses</button></div>
     <div>${ms.map(q=>`<div class="miss">${topicTag(t,q.topic)}<div style="font-weight:700;margin:6px 0">${esc(q.q)}</div><div style="color:var(--good)">Answer: ${esc(q.o[q.a])}</div></div>`).join('')}</div></div>`;
 }
+
+/* ---- Focus: notes and questions on one thing the student names ---- */
+const FSIZES = { quick:{label:'Quick', lessons:'1 lesson', mcq:5, sa:1}, standard:{label:'Standard', lessons:'1 or 2 lessons', mcq:10, sa:2}, deep:{label:'Deep dive', lessons:'2 or 3 lessons', mcq:15, sa:3} };
+function fjob(tid){ ui.focus=ui.focus||{}; return ui.focus[tid] || (ui.focus[tid]={size:'standard', notesOnly:null, running:false, stage:'', error:'', key:null, ctl:null}); }
+function focusSets(t){ return Object.keys(docs).filter(k=>k.startsWith('c_'+t.id+'_') && docs[k] && docs[k].focus).map(k=>({key:k, ...docs[k]})).sort((a,b)=>(b.created||0)-(a.created||0)); }
+function liveItems(t, set, kind){ const ids=new Set((set[kind]||[]).map(x=>x.id)); return t[kind].filter(x=>ids.has(x.id)); }
+function notesDigest(t){
+  const strip = x => String(x||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); const parts=[];
+  t.lessons.forEach(l=>{ parts.push(`## ${topicOf(t,l.topic).name}: ${l.title}\n` + (l.points||[]).map(p=>`- ${strip(p.h)}: ${l.html?strip(p.b):p.b}`).join('\n') + (l.vis||[]).map(v=>`\n- ${v.title}: `+v.items.map(i=>i[0]+(i[1]?' ('+i[1]+')':'')).join('; ')).join('')); });
+  if(t.traps.length) parts.push('## Exam traps\n'+t.traps.map(x=>`- ${x.a} vs ${x.b}: ${x.tip}`).join('\n'));
+  if(t.sa.length) parts.push('## Model answers\n'+t.sa.map(s=>`Q: ${s.q}\nA: ${s.model}`).join('\n\n'));
+  return parts.join('\n\n').slice(0,140000);
+}
+function weakTopic(t){ const p=prog(t.id); let best=null;
+  t.topics.forEach(tp=>{ const qs=t.mcq.filter(q=>q.topic===tp.id && p.mcq && p.mcq[q.id]!==undefined); if(qs.length<2) return; const r=qs.filter(q=>p.mcq[q.id]===1).length/qs.length; if(r<0.75 && (!best||r<best.r)) best={name:tp.name, r}; });
+  return best; }
+function focusPrompt(t, ask, sz, notesOnly, digest){
+  const names=t.topics.map(x=>x.name), seen=t.mcq.slice(-120).map(q=>q.q);
+  return `You are an expert tutor. A university student revising for "${t.name}" wants to focus on:
+"""${ask}"""
+Write revision notes and questions on exactly that, at the depth of their course.
+${digest ? (notesOnly
+  ? `Use ONLY facts from the student's notes below. Keep their terms, lists, names and numbers exactly. If the notes do not cover what they asked, return empty arrays and explain in "missing" what is not covered.`
+  : `Base everything on the student's notes below where they cover it, keeping their terms exactly. Where the notes don't cover it, use accurate, standard textbook knowledge for this subject.`)
+  : `The student has no notes for this test yet. Use accurate, standard textbook knowledge for this subject.`}
+Reply with only one JSON object of this shape:
+{"topic":"...","missing":"",
+ "lessons":[{"title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
+ "mcq":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was"}],
+ "sa":[{"q":"...","model":"model answer","pts":["a key point a marker looks for"]}],
+ "traps":[{"a":"term or idea","b":"what it is easily confused with","tip":"how to tell them apart"}]}
+Rules:
+- ${sz.lessons}, each on one part of what they asked. Each lesson has 3 to 6 points; a point's "b" is 1 to 4 plain sentences; for a list, put each item on its own line starting with "- ".
+- "vis": for each list, framework, sequence or model, one entry whose items are its parts in order (2 to 8 items). Leave it empty when there are none.
+- 4 to 8 flashcards per lesson, and exactly ${checkN(t)} check questions per lesson.
+- Exactly ${sz.mcq} multiple-choice questions on what they asked, from different angles: definitions, lists and order of steps, short scenarios ("A company ... This is an example of:"), one "Which is NOT ..." and the things students mix up. 4 options, exactly one correct; "a" is the 0-based index of the correct option; vary its position. Don't repeat questions from the list below.
+- Exactly ${sz.sa} short-answer question${sz.sa>1?'s':''}: explain, compare or apply to a scenario. Model answers 4 to 8 sentences with 3 to 5 key points.
+- 2 to 5 "traps" relevant to what they asked.
+- "topic": ${names.length?`one of these existing names if it fits: ${JSON.stringify(names)}; otherwise a short new name (2 to 6 words).`:'a short topic name (2 to 6 words).'}
+- Plain text only: no markdown, no HTML.
+${seen.length?`\nQUESTIONS THEY ALREADY HAVE:\n${seen.map(q=>'- '+q).join('\n')}\n`:''}${digest?`\nSTUDENT'S NOTES:\n"""\n${digest}\n"""`:''}`;
+}
+async function runFocus(t){
+  const j=fjob(t.id); if(j.running || !sampleFn) return;
+  const ask=val('fx-q-'+t.id); if(ask.length<3){ toast('Type what you want to focus on'); return; }
+  const digest=notesDigest(t), notesOnly = !!digest && j.notesOnly!==false, sz=FSIZES[j.size]||FSIZES.standard;
+  Object.assign(j,{running:true, error:'', key:null, ask, stage:'Writing your notes and questions', ctl:new AbortController()}); render();
+  try{
+    const res = await sampleFn.json(focusPrompt(t, ask, sz, notesOnly, digest), {signal:j.ctl.signal, cache:false, onText:({text})=>{ j.stage='Writing your notes and questions · '+text.length.toLocaleString()+' characters'; tick(); }});
+    const t1=getTest(t.id); if(!t1) throw {code:'gone'};
+    const r = res&&typeof res==='object' ? res : {};
+    const tp = String(r.topic||ask).slice(0,60);
+    const withTopic = arr => (Array.isArray(arr)?arr:[]).map(x=>Object.assign({topic:tp}, x&&typeof x==='object'?x:{}, {topic:tp}));
+    const {out, topics} = clean({lessons:withTopic(r.lessons), mcq:withTopic(r.mcq), sa:withTopic(r.sa), traps:r.traps||[]}, t1);
+    if(!out.lessons.length && !out.mcq.length && !out.sa.length){ j.error = r.missing ? 'Your notes don\'t cover this: '+String(r.missing)+' Turn on "Also use general knowledge" or add materials that cover it.' : 'Claude didn\'t return anything for that. Try wording it differently.'; }
+    else {
+      const key='c_'+t.id+'_'+rid('');
+      put(key, Object.assign({created:Date.now(), focus:{ask, size:j.size, notesOnly, missing:String(r.missing||'')}}, out));
+      if(topics.length!==t1.topics.length || !docs['t_'+t.id]) editTest(t.id, d=>{ d.topics=topics; if(!d.moduleId) d.moduleId=t1.moduleId; });
+      j.key=key; const el=document.getElementById('fx-q-'+t.id); if(el) el.value='';
+      toast('Your focus set is ready');
+    }
+  }catch(e){ j.error = e&&e.code==='cancelled' ? '' : jobError(e); if(e&&(e.code==='not_granted'||e.code==='sampling_disabled')) sampleFn=null; }
+  j.running=false; j.ctl=null; render(true);
+}
+function renderFocus(t){
+  const j=fjob(t.id), sets=focusSets(t), digest=t.lessons.length||t.traps.length||t.sa.length, notesOnly=digest && j.notesOnly!==false;
+  const sug=[...new Set([...(weakTopic(t)?[weakTopic(t).name]:[]), ...t.topics.map(x=>x.name), ...t.traps.slice(0,3).map(x=>`${x.a} vs ${x.b}`)])].slice(0,7);
+  let h='';
+  if(!sampleFn) h += `<div class="banner">Focus needs Claude, which isn't available in this view. Open the page on claude.ai while signed in.</div>`;
+  h += `<section class="card focusbox"><div><span class="tag" style="--tc:var(--accent)">${icon('focus').replace('<svg','<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2"')} Focus</span><h2 style="font-size:1.45rem;margin-top:8px">What do you want to focus on?</h2>
+      <p class="muted" style="margin-top:4px">Name a topic, a concept, a comparison or a question you keep getting wrong. Claude writes a short lesson, flashcards, practice questions and short-answer questions on just that, and adds them to this test.</p></div>
+    <label class="f"><span class="sr-only">What to focus on</span><textarea id="fx-q-${t.id}" placeholder="e.g. The difference between COBIT and ITIL, with exam-style scenarios" ${j.running?'disabled':''}>${j.running?esc(j.ask||''):''}</textarea></label>
+    ${sug.length?`<div><div class="label">Ideas from this test</div><div class="row" style="margin-top:8px">${sug.map((x,i)=>`<button class="chip" data-act="fx-suggest" data-v="${esc(x)}">${i===0&&weakTopic(t)?'Weakest: ':''}${esc(x)}</button>`).join('')}</div></div>`:''}
+    <div><div class="label">How much</div><div class="row" style="margin-top:8px">${Object.entries(FSIZES).map(([k,s])=>`<button class="chip" data-act="fx-size" data-v="${k}" aria-pressed="${j.size===k}">${s.label} · ${s.mcq} MCQ + ${s.sa} short</button>`).join('')}</div></div>
+    ${digest?`<div class="row"><button class="switch tg" style="--tc:var(--accent)" data-act="fx-notes" aria-pressed="${!notesOnly}">Also use general knowledge</button><span class="muted small">${notesOnly?'Sticks to what your materials say. Turn on general knowledge if your notes don\'t cover it.':'Uses your notes first, then standard textbook knowledge to fill gaps.'}</span></div>`
+      :`<p class="muted small">This test has no notes yet, so Claude uses standard textbook knowledge. <button class="btn quiet sm" data-tab="build">Add your materials</button> for answers that match your course.</p>`}
+    <div class="row">${j.running?`<button class="btn" disabled><span class="spin"></span>${esc(j.stage)}</button><button class="btn ghost" data-act="fx-stop">Stop</button>`:`<button class="btn" data-act="fx-go" ${sampleFn?'':'disabled'}>Generate notes and questions</button><span class="muted small">Takes about a minute · uses your Claude usage</span>`}</div>
+    ${j.error?`<div class="note" style="border-color:var(--bad);background:var(--bad-bg)">${esc(j.error)}</div>`:''}</section>`;
+  const cur = j.key && sets.find(s=>s.key===j.key);
+  if(cur) h += focusResult(t, cur);
+  const rest = sets.filter(s=>!cur || s.key!==cur.key);
+  if(rest.length) h += `<section class="card"><h2 style="font-size:1.15rem;margin-bottom:4px">Your focus sets</h2><p class="muted small">Everything here is also in Lessons, Practice, Flashcards and the mock test.</p><div style="margin-top:6px">${rest.map(s=>focusRow(t,s)).join('')}</div></section>`;
+  else if(!cur && !j.running) h += `<div class="card empty"><h3>No focus sets yet</h3><p>Your focus sets show up here so you can practise them again.</p></div>`;
+  return h;
+}
+function focusCounts(t,s){ const n={l:liveItems(t,s,'lessons').length, m:liveItems(t,s,'mcq').length, a:liveItems(t,s,'sa').length}; return n; }
+function focusButtons(t,s,n){ return `${n.m?`<button class="btn sm" data-act="fx-practise" data-key="${esc(s.key)}">Practise ${n.m} MCQ</button>`:''}${n.l?`<button class="btn ghost sm" data-act="fx-lesson" data-key="${esc(s.key)}">Open lesson${n.l>1?'s':''}</button>`:''}${n.a?`<button class="btn ghost sm" data-act="fx-short" data-key="${esc(s.key)}">${n.a} short answer</button>`:''}<button class="btn quiet sm" data-act="fx-del" data-key="${esc(s.key)}">Delete</button>`; }
+function focusRow(t,s){ const n=focusCounts(t,s); if(!n.l&&!n.m&&!n.a) return '';
+  return `<div class="fset"><div><h3>${esc(s.focus.ask)}</h3><div class="muted small">${esc(ago(s.created))} · ${n.l} lesson${n.l===1?'':'s'} · ${n.m} MCQ · ${n.a} short answer${s.focus.notesOnly?'':' · used general knowledge'}</div></div><span></span><div class="row">${focusButtons(t,s,n)}</div></div>`; }
+function focusResult(t,s){ const n=focusCounts(t,s), ls=liveItems(t,s,'lessons'), tr=s.traps||[];
+  return `<section class="card stack fpreview"><div class="row between" style="align-items:flex-start"><div><div class="label">Ready</div><h2 style="font-size:1.3rem;margin-top:4px">${esc(s.focus.ask)}</h2><p class="muted small" style="margin-top:4px">${n.l} lesson${n.l===1?'':'s'}, ${n.m} multiple-choice and ${n.a} short-answer question${n.a===1?'':'s'}. Saved to this test.</p></div></div>
+    <div class="row">${focusButtons(t,s,n)}</div>
+    ${ls.map(l=>`<div class="stack" style="gap:10px"><h3 style="font-size:1.1rem">${esc(l.title)}</h3>${(l.points||[]).map(p=>`<div class="point"><h3>${esc(p.h)}</h3><div class="body">${plain(p.b)}</div></div>`).join('')}</div>`).join('')}
+    ${tr.length?`<div><div class="label" style="margin-bottom:8px">Don't mix these up</div><div class="items">${tr.map(x=>`<div class="item"><div class="t"><b>${esc(x.a)}</b> <span class="muted">vs</span> <b>${esc(x.b)}</b><div class="muted small">${esc(x.tip)}</div></div><span></span></div>`).join('')}</div></div>`:''}</section>`; }
+
 function renderDeck(t){
   const cards=allCards(t); if(!cards.length) return emptyFor('flashcards');
   const p=prog(t.id);
@@ -1691,6 +1842,16 @@ function act(a, el, t){
     case 'import': { let data; try{ data=JSON.parse(val('imp-'+t.id)); }catch(err){ toast('That is not valid JSON'); return; }
       if(Array.isArray(data)) data={mcq:data}; const n=ingest(t,data,true); if(n){ const el2=document.getElementById('imp-'+t.id); if(el2) el2.value=''; render(); toast('Imported '+n+' items'); } else toast('Nothing in that JSON matched the format'); break; }
     case 'copy-shape': { try{ navigator.clipboard.writeText(IMPORT_SHAPE).then(()=>toast('Format copied'),()=>toast('Select the text to copy it')); }catch(err){ toast('Select the text to copy it'); } break; }
+    case 'fx-go': runFocus(t); break;
+    case 'fx-stop': { const j=fjob(t.id); if(j.ctl) j.ctl.abort(); break; }
+    case 'fx-size': fjob(t.id).size=el.dataset.v; render(); break;
+    case 'fx-notes': { const j=fjob(t.id); j.notesOnly = j.notesOnly===false; render(); break; }
+    case 'fx-suggest': { const ta=document.getElementById('fx-q-'+t.id); if(ta){ ta.value=el.dataset.v; ta.focus(); } break; }
+    case 'fx-practise': { const s=docs[el.dataset.key]; if(s) startSess('practice','Focus: '+s.focus.ask.slice(0,40),shuffle(liveItems(t,s,'mcq')).map(mcqItem),true); break; }
+    case 'fx-short': { const s=docs[el.dataset.key]; if(s) startSess('short','Focus: short answer',liveItems(t,s,'sa').map(saItem),false); break; }
+    case 'fx-lesson': { const s=docs[el.dataset.key]; const l1=s&&liveItems(t,s,'lessons')[0]; if(l1){ Object.assign(ui,{tab:'lessons', lid:l1.id, ltab:'learn', fc:null, ck:null, open:{}}); render(true); window.scrollTo(0,0); } break; }
+    case 'fx-del': { const k=el.dataset.key; ui.modal={kind:'confirm', title:'Delete this focus set?', text:'Removes its lessons, flashcards and questions from this test.', ok:'Delete', act:'fx-del-ok', key:k}; renderOverlay(); break; }
+    case 'fx-del-ok': { const k=ui.modal&&ui.modal.key; if(k) put(k,null); const j=fjob(t.id); if(j.key===k) j.key=null; ui.modal=null; render(true); toast('Focus set deleted'); break; }
     case 'build-start': startBuild(t.id); break;
     case 'build-stop': { const b=build(t.id); if(b.ctl) b.ctl.abort(); break; }
     case 'build-clear': { const b=build(t.id); if(!b.running){ b.jobs=null; b.files=[]; } render(true); break; }
