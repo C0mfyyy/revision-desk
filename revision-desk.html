@@ -1081,6 +1081,7 @@ function renderLessons(t){
   if(ui.lid){ const l=t.lessons.find(x=>x.id===ui.lid); if(l) return renderLesson(t,l); ui.lid=null; }
   const p=prog(t.id); const nxt=t.lessons.find(l=>!(p.lessons&&p.lessons[l.id]!==undefined));
   let h = nxt? `<div class="card row between"><div><div class="label">Up next</div><b style="font-size:1.1rem">${esc(nxt.title)}</b></div><button class="btn" data-lesson="${esc(nxt.id)}">Start lesson</button></div>` : `<div class="card"><b>All lessons done.</b> <span class="muted">Revisit any of them to keep it fresh.</span></div>`;
+  h += `<p class="muted small">Each lesson ends with a ${checkN(t)}-question check. <button class="btn quiet sm" data-tab="manage">Change how many</button></p>`;
   const groups = [...t.topics.map(tp=>tp.id), ...new Set(t.lessons.map(l=>l.topic).filter(id=>!t.topics.some(tp=>tp.id===id)))];
   groups.forEach(gid=>{ const ls=t.lessons.filter(l=>l.topic===gid); if(!ls.length) return; const tp=topicOf(t,gid);
     h += `<section class="stack" style="gap:10px"><div class="row between"><h2 style="font-size:1.1rem">${tp.n?`<span class="muted">Topic ${tp.n} · </span>`:''}${esc(tp.name)}</h2><span class="small muted num">${ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length}/${ls.length}</span></div>
@@ -1122,7 +1123,7 @@ function flipCard(cd, meta, c, flipped){
     <div class="muted small">${flipped?'Did you get it?':'Think of the answer, then tap the card or press Space.'}</div>
     <div class="row"><button class="btn ghost" data-act="fc-miss" ${flipped?'':'disabled'}>Again</button><button class="btn" data-act="fc-got" ${flipped?'':'disabled'}>Got it</button></div></div>`;
 }
-const checkN = t => { const n=Math.round(+((t.format||{}).check)); return n>0 ? Math.min(n,20) : 3; };
+const checkN = t => { const n=Math.round(+((t.format||{}).check)); return n>0 ? Math.min(n,20) : 5; };
 // A lesson's own check questions first; if the test asks for more, top up with practice MCQs from the same topic.
 function checkPool(t,l){ const own=l.check||[], n=checkN(t);
   if(own.length>=n) return own.length>n ? shuffle(own).slice(0,n) : own;
@@ -1261,7 +1262,7 @@ function renderManage(t){
   let h = `<section class="card stack"><h2 style="font-size:1.2rem">Test details</h2>
     <div class="grid2"><label class="f">Test name<input type="text" id="ed-name-${tid}" value="${esc(t.name)}"></label><label class="f">Test date<input type="date" id="ed-date-${tid}" value="${esc(t.date)}"></label></div>
     <div class="grid2"><label class="f">Mock test: multiple-choice questions<input type="number" min="0" max="200" id="ed-fm-${tid}" value="${t.format.mcq}"></label><label class="f">Mock test: short-answer questions<input type="number" min="0" max="20" id="ed-fs-${tid}" value="${t.format.sa}"></label></div>
-    <div class="grid2"><label class="f">Lesson check: questions per lesson <span class="hint">Lessons with fewer of their own are topped up from this topic's practice questions</span><input type="number" min="1" max="20" id="ed-fc-${tid}" value="${checkN(t)}"></label></div>
+    <div class="grid2"><label class="f">Lesson check: questions per lesson <span class="hint">How many questions each lesson's check asks (1 to 20). Lessons with fewer of their own are topped up from the same topic's practice questions.</span><input type="number" min="1" max="20" id="ed-fc-${tid}" value="${checkN(t)}"></label></div>
     <div><button class="btn" data-act="save-details">Save details</button></div></section>`;
   h += `<section class="card stack"><div><h2 style="font-size:1.2rem">Topics</h2><p class="muted small" style="margin-top:4px">Topics group lessons and questions, and drive the readiness bars.</p></div>
     <div class="stack" style="gap:8px">${t.topics.map((tp,i)=>`<div class="row" style="flex-wrap:nowrap"><span class="tag" style="--tc:${COLORS[i%COLORS.length]}">${i+1}</span><input type="text" id="tp-${esc(tp.id)}" value="${esc(tp.name)}" aria-label="Topic ${i+1} name"><button class="btn quiet sm" data-act="del-topic" data-id="${esc(tp.id)}" aria-label="Remove topic">Remove</button></div>`).join('')}</div>
@@ -1432,7 +1433,7 @@ Rules:
 - Each lesson has 3 to 6 points. A point's "b" is 1 to 4 plain sentences; for a list, put each item on its own line starting with "- ".
 - "vis": for each list, framework, sequence, process, model or matrix in the lesson, add one entry whose items are its parts in order (2 to 8 items). Leave "vis" empty when there are none.
 - 4 to 8 flashcards per lesson that test definitions, lists, who/what/which, and the order of steps.
-- Exactly ${nCheck||3} check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
+- Exactly ${nCheck||5} check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
 - "traps": 3 to 8 pairs of things in this material that students are likely to mix up in a multiple-choice test.
 - Topic: ${topicRule(names)}
 - Plain text only: no markdown, no HTML.
@@ -1644,7 +1645,7 @@ function act(a, el, t){
     case 'next': nextItem(); break;
     case 'quit': finishSess(); break;
     case 'sess-close': ui.sess=null; render(true); break;
-    case 'save-details': { const name=val('ed-name-'+t.id)||t.name; editTest(t.id,d=>{ d.name=name; d.date=val('ed-date-'+t.id); d.format={mcq:Math.max(0,+val('ed-fm-'+t.id)||0), sa:Math.max(0,+val('ed-fs-'+t.id)||0), check:Math.min(20,Math.max(1,Math.round(+val('ed-fc-'+t.id)||3)))}; ui.ck=null; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Details saved'); break; }
+    case 'save-details': { const name=val('ed-name-'+t.id)||t.name; editTest(t.id,d=>{ d.name=name; d.date=val('ed-date-'+t.id); d.format={mcq:Math.max(0,+val('ed-fm-'+t.id)||0), sa:Math.max(0,+val('ed-fs-'+t.id)||0), check:Math.min(20,Math.max(1,Math.round(+val('ed-fc-'+t.id)||5)))}; ui.ck=null; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Details saved'); break; }
     case 'save-topics': { editTest(t.id,d=>{ d.topics=t.topics.map(tp=>({id:tp.id,name:val('tp-'+tp.id)||tp.name})); }); render(); toast('Topics saved'); break; }
     case 'add-topic': { const n=val('tp-new-'+t.id); if(!n) return; editTest(t.id,d=>{ d.topics=[...t.topics,{id:rid('tp'),name:n}]; }); render(true); toast('Topic added'); break; }
     case 'del-topic': { const id=el.dataset.id; editTest(t.id,d=>{ d.topics=t.topics.filter(x=>x.id!==id); }); render(true); break; }
