@@ -1061,7 +1061,7 @@ function renderOverview(t){
     return `<div class="card empty"><h3>${b&&b.running?'Your study materials are being built':'This test is empty'}</h3><p>${b&&b.running?'Follow the progress in Add materials. Lessons and questions appear here as each file finishes.':'Upload your lecture slides, notes or readings. Claude reads them and writes the lessons, flashcards, study guide and practice questions for this test.'}</p><div class="row" style="margin-top:14px;justify-content:center"><button class="btn" data-tab="build">${b&&b.running?'See progress':'Add study materials'}</button>${b&&b.running?'':'<button class="btn ghost" data-tab="manage">Add by hand</button>'}</div></div>`; }
   const traps = t.traps.length? `<section class="card stack"><div class="row between"><h2 style="font-size:1.15rem">Exam traps</h2><button class="btn quiet sm" data-tab="guide">See all ${t.traps.length}</button></div><div class="items">${t.traps.slice(0,4).map(x=>`<div class="item"><div class="t"><b>${esc(x.a)}</b> <span class="muted">vs</span> <b>${esc(x.b)}</b><div class="muted small">${esc(x.tip)}</div></div><span></span></div>`).join('')}</div></section>` : '';
   let h = `<div class="grid3">
-    <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a 3-question check.`:'No lessons yet.'}</span></button>
+    <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a ${checkN(t)}-question check.`:'No lessons yet.'}</span></button>
     <button class="launch" data-tab="practice"><b>Practice</b><span>${t.mcq.length} multiple-choice questions with instant feedback.</span></button>
     <button class="launch" data-tab="mock"><b>Mock test</b><span>${t.format.mcq} MCQ + ${t.format.sa} short answer, marked at the end.${p.best?` Best: ${p.best.mcq}/${p.best.n}.`:''}</span></button></div>`;
   if(t.topics.length){
@@ -1092,7 +1092,7 @@ function stepsVis(key, v, c){ const i = ui.sel[key]!==undefined?ui.sel[key]:0;
 function renderLesson(t,l){
   const tp=topicOf(t,l.topic), c=tp.c, idx=t.lessons.indexOf(l), nxt=t.lessons[idx+1], prv=t.lessons[idx-1], p=prog(t.id);
   const done = p.lessons&&p.lessons[l.id]!==undefined;
-  let h = `<div class="stack" style="--tc:${c}"><div class="row between"><button class="btn quiet sm" data-act="lessons-back">← All lessons</button>${done?`<span class="tag" style="--tc:var(--good)">Done · check ${p.lessons[l.id]}/${(l.check||[]).length}</span>`:''}</div>
+  let h = `<div class="stack" style="--tc:${c}"><div class="row between"><button class="btn quiet sm" data-act="lessons-back">← All lessons</button>${done?`<span class="tag" style="--tc:var(--good)">Done · check ${p.lessons[l.id]}/${checkCount(t,l)}</span>`:''}</div>
     <div><span class="tag" style="--tc:${c}">${tp.n?'Topic '+tp.n+': ':''}${esc(tp.name)}</span><h2 style="font-size:1.7rem;margin-top:8px">${esc(l.title)}</h2>${l.blurb?`<p class="muted" style="margin-top:4px">${esc(l.blurb)}</p>`:''}</div>
     <div class="subtabs">${[['learn','1 Learn'],['cards','2 Flashcards'],['check','3 Check']].map(([k,lb])=>`<button data-ltab="${k}" aria-current="${ui.ltab===k}">${lb}</button>`).join('')}</div>`;
   if(ui.ltab==='learn'){
@@ -1100,7 +1100,7 @@ function renderLesson(t,l){
     h += `<div class="row"><button class="switch" data-act="recall" aria-pressed="${ui.recall}">${ui.recall?'Recall mode on':'Recall mode off'}</button><span class="muted small">${ui.recall?'Read each heading, say the answer, then tap to check.':'Hide the notes and test yourself.'}</span></div>
       <div class="${ui.recall?'recall':''} stack" style="gap:12px">${pts||'<p class="muted">This lesson has no notes.</p>'}</div>
       ${(l.vis||[]).map((v,j)=>stepsVis(l.id+'v'+j,v,c)).join('')}
-      <div class="row">${(l.cards||[]).length?'<button class="btn" data-ltab="cards">Next: flashcards</button>':(l.check||[]).length?'<button class="btn" data-ltab="check">Next: check</button>':''}${prv?`<button class="btn ghost" data-lesson="${esc(prv.id)}">Previous lesson</button>`:''}${!(l.check||[]).length&&!done?'<button class="btn ghost" data-act="lesson-done">Mark as done</button>':''}</div>`;
+      <div class="row">${(l.cards||[]).length?'<button class="btn" data-ltab="cards">Next: flashcards</button>':checkCount(t,l)?'<button class="btn" data-ltab="check">Next: check</button>':''}${prv?`<button class="btn ghost" data-lesson="${esc(prv.id)}">Previous lesson</button>`:''}${!checkCount(t,l)&&!done?'<button class="btn ghost" data-act="lesson-done">Mark as done</button>':''}</div>`;
   } else if(ui.ltab==='cards') h += renderLessonCards(t,l,c);
   else h += renderCheck(t,l,c,nxt);
   return h + '</div>';
@@ -1122,10 +1122,16 @@ function flipCard(cd, meta, c, flipped){
     <div class="muted small">${flipped?'Did you get it?':'Think of the answer, then tap the card or press Space.'}</div>
     <div class="row"><button class="btn ghost" data-act="fc-miss" ${flipped?'':'disabled'}>Again</button><button class="btn" data-act="fc-got" ${flipped?'':'disabled'}>Got it</button></div></div>`;
 }
-function startCk(l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:(l.check||[]).map(q=>({q:q.q,e:q.e,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}))}; }
+const checkN = t => { const n=Math.round(+((t.format||{}).check)); return n>0 ? Math.min(n,20) : 3; };
+// A lesson's own check questions first; if the test asks for more, top up with practice MCQs from the same topic.
+function checkPool(t,l){ const own=l.check||[], n=checkN(t);
+  if(own.length>=n) return own.length>n ? shuffle(own).slice(0,n) : own;
+  return own.concat(shuffle(t.mcq.filter(q=>q.topic===l.topic && !own.some(o=>o.q===q.q))).slice(0,n-own.length)); }
+const checkCount = (t,l) => Math.min(checkN(t), (l.check||[]).length + t.mcq.filter(q=>q.topic===l.topic && !(l.check||[]).some(o=>o.q===q.q)).length);
+function startCk(t,l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:checkPool(t,l).map(q=>({q:q.q,e:q.e,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}))}; }
 function renderCheck(t,l,c,nxt){
-  if(!(l.check||[]).length) return `<p class="muted">No check questions in this lesson.</p><div class="row"><button class="btn" data-act="lesson-done">Mark as done</button></div>`;
-  if(!ui.ck || ui.ck.lid!==l.id) startCk(l);
+  if(!checkCount(t,l)) return `<p class="muted">No check questions in this lesson.</p><div class="row"><button class="btn" data-act="lesson-done">Mark as done</button></div>`;
+  if(!ui.ck || ui.ck.lid!==l.id) startCk(t,l);
   const ck=ui.ck;
   if(ck.done){ const n=ck.qs.length;
     return `<div class="card stack"><div class="label">Check result</div><div class="bigscore num" style="color:${c}">${ck.score}/${n}</div><p>${ck.score===n?'Full marks. This lesson is done.':'Lesson marked done. Review what you missed, then retry for a better score.'}</p>
@@ -1255,6 +1261,7 @@ function renderManage(t){
   let h = `<section class="card stack"><h2 style="font-size:1.2rem">Test details</h2>
     <div class="grid2"><label class="f">Test name<input type="text" id="ed-name-${tid}" value="${esc(t.name)}"></label><label class="f">Test date<input type="date" id="ed-date-${tid}" value="${esc(t.date)}"></label></div>
     <div class="grid2"><label class="f">Mock test: multiple-choice questions<input type="number" min="0" max="200" id="ed-fm-${tid}" value="${t.format.mcq}"></label><label class="f">Mock test: short-answer questions<input type="number" min="0" max="20" id="ed-fs-${tid}" value="${t.format.sa}"></label></div>
+    <div class="grid2"><label class="f">Lesson check: questions per lesson <span class="hint">Lessons with fewer of their own are topped up from this topic's practice questions</span><input type="number" min="1" max="20" id="ed-fc-${tid}" value="${checkN(t)}"></label></div>
     <div><button class="btn" data-act="save-details">Save details</button></div></section>`;
   h += `<section class="card stack"><div><h2 style="font-size:1.2rem">Topics</h2><p class="muted small" style="margin-top:4px">Topics group lessons and questions, and drive the readiness bars.</p></div>
     <div class="stack" style="gap:8px">${t.topics.map((tp,i)=>`<div class="row" style="flex-wrap:nowrap"><span class="tag" style="--tc:${COLORS[i%COLORS.length]}">${i+1}</span><input type="text" id="tp-${esc(tp.id)}" value="${esc(tp.name)}" aria-label="Topic ${i+1} name"><button class="btn quiet sm" data-act="del-topic" data-id="${esc(tp.id)}" aria-label="Remove topic">Remove</button></div>`).join('')}</div>
@@ -1415,7 +1422,7 @@ function splitText(text, max){
 function topicRule(names){ return names.length
   ? `Use one of these existing topic names when the material belongs to it: ${JSON.stringify(names)}. Otherwise give it a short new topic name (2 to 6 words). Use one topic name for the whole material unless it clearly covers several separate topics.`
   : `Give the material a short topic name (2 to 6 words), keeping any lecture or topic number the material uses (for example "Topic 5: Risk Optimization"). Use one topic name for the whole material unless it clearly covers several separate topics.`; }
-function notesPrompt(j, names){ return `You are an expert tutor turning a university student's study material into revision notes for an upcoming test. Source: "${j.name}".
+function notesPrompt(j, names, nCheck){ return `You are an expert tutor turning a university student's study material into revision notes for an upcoming test. Source: "${j.name}".
 Use ONLY facts from the material below. Do not add outside knowledge. Keep the material's own terms, lists, names, numbers, dates, frameworks and models exactly as given.
 Reply with only one JSON object of this shape:
 {"lessons":[{"topic":"...","title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
@@ -1425,7 +1432,7 @@ Rules:
 - Each lesson has 3 to 6 points. A point's "b" is 1 to 4 plain sentences; for a list, put each item on its own line starting with "- ".
 - "vis": for each list, framework, sequence, process, model or matrix in the lesson, add one entry whose items are its parts in order (2 to 8 items). Leave "vis" empty when there are none.
 - 4 to 8 flashcards per lesson that test definitions, lists, who/what/which, and the order of steps.
-- Exactly 3 check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
+- Exactly ${nCheck||3} check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
 - "traps": 3 to 8 pairs of things in this material that students are likely to mix up in a multiple-choice test.
 - Topic: ${topicRule(names)}
 - Plain text only: no markdown, no HTML.
@@ -1471,7 +1478,7 @@ async function runJob(tid, b, j){
     if(!j.notesDone){
       const t0=getTest(tid); if(!t0) throw {code:'gone'};
       j.stage='Writing study notes'; tick();
-      const notes=await sampleFn.json(notesPrompt(j, t0.topics.map(x=>x.name)), {signal:sig, cache:false, onText:({text})=>{ j.stage='Writing study notes · '+text.length.toLocaleString()+' characters'; tick(); }});
+      const notes=await sampleFn.json(notesPrompt(j, t0.topics.map(x=>x.name), checkN(t0)), {signal:sig, cache:false, onText:({text})=>{ j.stage='Writing study notes · '+text.length.toLocaleString()+' characters'; tick(); }});
       const t1=getTest(tid); if(!t1) throw {code:'gone'};
       ingest(t1, notes&&typeof notes==='object'?{lessons:notes.lessons, traps:notes.traps}:{}, true);
       const o=ingest.last; j.counts={lessons:o.lessons.length, traps:o.traps.length};
@@ -1624,7 +1631,7 @@ function act(a, el, t){
     case 'fc-again': fc_new(l.id, shuffle(ui.fc.again)); render(); break;
     case 'fc-restart': startFc(l); render(); break;
     case 'ck-next': { const ck=ui.ck; if(ck.i<ck.qs.length-1){ ck.i++; ck.picked=null; } else { ck.done=true; lessonDone(t,l.id,ck.score); editProg(t.id,p=>{ p.hist.push({at:Date.now(),kind:'Lesson check',score:ck.score,n:ck.qs.length}); p.hist=p.hist.slice(-40); }, 0); } render(); break; }
-    case 'ck-retry': startCk(l); render(); break;
+    case 'ck-retry': startCk(t,l); render(); break;
     case 'deck-start': { const p=prog(t.id); let pool=allCards(t).filter(c=>inTopics(t,c)); if(el.dataset.only) pool=pool.filter(c=>!(p.cards&&p.cards[c.id])); ui.deck={tid:t.id, order:shuffle(pool.map(c=>c.id)), i:0, flipped:false, got:0, again:[]}; render(true); break; }
     case 'deck-again': ui.deck={tid:t.id, order:shuffle(ui.deck.again), i:0, flipped:false, got:0, again:[]}; render(); break;
     case 'deck-exit': ui.deck=null; render(true); break;
@@ -1637,7 +1644,7 @@ function act(a, el, t){
     case 'next': nextItem(); break;
     case 'quit': finishSess(); break;
     case 'sess-close': ui.sess=null; render(true); break;
-    case 'save-details': { const name=val('ed-name-'+t.id)||t.name; editTest(t.id,d=>{ d.name=name; d.date=val('ed-date-'+t.id); d.format={mcq:Math.max(0,+val('ed-fm-'+t.id)||0), sa:Math.max(0,+val('ed-fs-'+t.id)||0)}; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Details saved'); break; }
+    case 'save-details': { const name=val('ed-name-'+t.id)||t.name; editTest(t.id,d=>{ d.name=name; d.date=val('ed-date-'+t.id); d.format={mcq:Math.max(0,+val('ed-fm-'+t.id)||0), sa:Math.max(0,+val('ed-fs-'+t.id)||0), check:Math.min(20,Math.max(1,Math.round(+val('ed-fc-'+t.id)||3)))}; ui.ck=null; if(!d.moduleId) d.moduleId=t.moduleId; }); render(); toast('Details saved'); break; }
     case 'save-topics': { editTest(t.id,d=>{ d.topics=t.topics.map(tp=>({id:tp.id,name:val('tp-'+tp.id)||tp.name})); }); render(); toast('Topics saved'); break; }
     case 'add-topic': { const n=val('tp-new-'+t.id); if(!n) return; editTest(t.id,d=>{ d.topics=[...t.topics,{id:rid('tp'),name:n}]; }); render(true); toast('Topic added'); break; }
     case 'del-topic': { const id=el.dataset.id; editTest(t.id,d=>{ d.topics=t.topics.filter(x=>x.id!==id); }); render(true); break; }
