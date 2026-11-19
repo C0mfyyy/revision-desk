@@ -1061,7 +1061,7 @@ function renderOverview(t){
     return `<div class="card empty"><h3>${b&&b.running?'Your study materials are being built':'This test is empty'}</h3><p>${b&&b.running?'Follow the progress in Add materials. Lessons and questions appear here as each file finishes.':'Upload your lecture slides, notes or readings. Claude reads them and writes the lessons, flashcards, study guide and practice questions for this test.'}</p><div class="row" style="margin-top:14px;justify-content:center"><button class="btn" data-tab="build">${b&&b.running?'See progress':'Add study materials'}</button>${b&&b.running?'':'<button class="btn ghost" data-tab="manage">Add by hand</button>'}</div></div>`; }
   const traps = t.traps.length? `<section class="card stack"><div class="row between"><h2 style="font-size:1.15rem">Exam traps</h2><button class="btn quiet sm" data-tab="guide">See all ${t.traps.length}</button></div><div class="items">${t.traps.slice(0,4).map(x=>`<div class="item"><div class="t"><b>${esc(x.a)}</b> <span class="muted">vs</span> <b>${esc(x.b)}</b><div class="muted small">${esc(x.tip)}</div></div><span></span></div>`).join('')}</div></section>` : '';
   let h = `<div class="grid3">
-    <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a ${checkN(t)}-question check.`:'No lessons yet.'}</span></button>
+    <button class="launch" data-tab="lessons"><b>Lessons</b><span>${t.lessons.length? `${t.lessons.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length} of ${t.lessons.length} done. Learn, flip cards, then a check of up to ${checkN(t)} questions.`:'No lessons yet.'}</span></button>
     <button class="launch" data-tab="practice"><b>Practice</b><span>${t.mcq.length} multiple-choice questions with instant feedback.</span></button>
     <button class="launch" data-tab="mock"><b>Mock test</b><span>${t.format.mcq} MCQ + ${t.format.sa} short answer, marked at the end.${p.best?` Best: ${p.best.mcq}/${p.best.n}.`:''}</span></button></div>`;
   if(t.topics.length){
@@ -1081,7 +1081,7 @@ function renderLessons(t){
   if(ui.lid){ const l=t.lessons.find(x=>x.id===ui.lid); if(l) return renderLesson(t,l); ui.lid=null; }
   const p=prog(t.id); const nxt=t.lessons.find(l=>!(p.lessons&&p.lessons[l.id]!==undefined));
   let h = nxt? `<div class="card row between"><div><div class="label">Up next</div><b style="font-size:1.1rem">${esc(nxt.title)}</b></div><button class="btn" data-lesson="${esc(nxt.id)}">Start lesson</button></div>` : `<div class="card"><b>All lessons done.</b> <span class="muted">Revisit any of them to keep it fresh.</span></div>`;
-  h += `<p class="muted small">Each lesson ends with a ${checkN(t)}-question check. <button class="btn quiet sm" data-tab="manage">Change how many</button></p>`;
+  h += `<p class="muted small">Each lesson ends with a check of up to ${checkN(t)} questions, all about that lesson. <button class="btn quiet sm" data-tab="manage">Change how many</button></p>`;
   const groups = [...t.topics.map(tp=>tp.id), ...new Set(t.lessons.map(l=>l.topic).filter(id=>!t.topics.some(tp=>tp.id===id)))];
   groups.forEach(gid=>{ const ls=t.lessons.filter(l=>l.topic===gid); if(!ls.length) return; const tp=topicOf(t,gid);
     h += `<section class="stack" style="gap:10px"><div class="row between"><h2 style="font-size:1.1rem">${tp.n?`<span class="muted">Topic ${tp.n} · </span>`:''}${esc(tp.name)}</h2><span class="small muted num">${ls.filter(l=>p.lessons&&p.lessons[l.id]!==undefined).length}/${ls.length}</span></div>
@@ -1124,11 +1124,39 @@ function flipCard(cd, meta, c, flipped){
     <div class="row"><button class="btn ghost" data-act="fc-miss" ${flipped?'':'disabled'}>Again</button><button class="btn" data-act="fc-got" ${flipped?'':'disabled'}>Got it</button></div></div>`;
 }
 const checkN = t => { const n=Math.round(+((t.format||{}).check)); return n>0 ? Math.min(n,20) : 5; };
-// A lesson's own check questions first; if the test asks for more, top up with practice MCQs from the same topic.
+// A lesson's own check questions first; if the test asks for more, top up with practice MCQs that are about THIS lesson.
+// Each practice MCQ is matched to the one lesson in its topic whose notes share the most distinctive words with it,
+// so a top-up never comes from a sibling lesson and the same question is never used by two lessons.
+const STOP = new Set('this that with from what which when where their there these those they them then than have has had will would should could about into over under such each other most more less many much only also both between within without because while being been were does done your yours ours which whose whom example following true false best describes describe statement statements company organisation organization'.split(' '));
+function words(x){ return String(x||'').replace(/<[^>]*>/g,' ').toLowerCase().match(/[a-z][a-z0-9-]{3,}/g)||[]; }
+const lessonMatch = new WeakMap();   // test object -> Map(mcq id -> lesson id)
+function lessonOfMcq(t){
+  let m = lessonMatch.get(t); if(m) return m; m = new Map();
+  const byTopic = {}; t.lessons.forEach(l=>(byTopic[l.topic]=byTopic[l.topic]||[]).push(l));
+  const vocab = {};   // per topic: lesson id -> Set(words), plus document frequency
+  for(const tp in byTopic){
+    const ls = byTopic[tp].map(l=>({id:l.id, w:new Set(words([l.title, l.blurb, ...(l.points||[]).flatMap(x=>[x.h,x.b]), ...(l.cards||[]).flatMap(c=>[c.f,c.b]), ...(l.check||[]).flatMap(q=>[q.q,...(q.o||[])])].join(' ')).filter(w=>!STOP.has(w)))}));
+    const df = {}; ls.forEach(x=>x.w.forEach(w=>df[w]=(df[w]||0)+1));
+    vocab[tp] = {ls, df};
+  }
+  t.mcq.forEach(q=>{
+    const v = vocab[q.topic]; if(!v) return;
+    const qw = new Set(words([q.q, (q.o||[])[q.a], q.e].join(' ')).filter(w=>!STOP.has(w)));
+    let best=null, bestS=0, second=0;
+    v.ls.forEach(x=>{ let s=0; qw.forEach(w=>{ if(x.w.has(w)) s += 1/v.df[w]; }); if(s>bestS){ second=bestS; bestS=s; best=x.id; } else if(s>second) second=s; });
+    if(best && bestS>=1 && bestS>second) m.set(q.id, best);   // only a clear match; unclear questions stay in Practice only
+  });
+  lessonMatch.set(t, m); return m;
+}
+// Two questions are "the same" if their wording overlaps heavily or their correct answers do: the built-in practice set rewords some lesson checks.
+const stems = x => new Set(words(x).filter(w=>!STOP.has(w)).map(w=>w.slice(0,6)));   // "communicating" and "communication" count as the same word
+function overlap(x,y){ const A=stems(x), B=stems(y); if(!A.size||!B.size) return 0; let n=0; A.forEach(w=>{ if(B.has(w)) n++; }); return n/Math.min(A.size,B.size); }
+const sameQuestion = (p,q) => p.q===q.q || overlap(p.q,q.q)>=0.7 || overlap((p.o||[])[p.a],(q.o||[])[q.a])>=0.7;
+function lessonExtras(t,l){ const own=l.check||[], m=lessonOfMcq(t); return t.mcq.filter(q=>m.get(q.id)===l.id && !own.some(o=>sameQuestion(o,q))); }
 function checkPool(t,l){ const own=l.check||[], n=checkN(t);
   if(own.length>=n) return own.length>n ? shuffle(own).slice(0,n) : own;
-  return own.concat(shuffle(t.mcq.filter(q=>q.topic===l.topic && !own.some(o=>o.q===q.q))).slice(0,n-own.length)); }
-const checkCount = (t,l) => Math.min(checkN(t), (l.check||[]).length + t.mcq.filter(q=>q.topic===l.topic && !(l.check||[]).some(o=>o.q===q.q)).length);
+  return own.concat(shuffle(lessonExtras(t,l)).slice(0,n-own.length)); }
+const checkCount = (t,l) => Math.min(checkN(t), (l.check||[]).length + lessonExtras(t,l).length);
 function startCk(t,l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:checkPool(t,l).map(q=>({q:q.q,e:q.e,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}))}; }
 function renderCheck(t,l,c,nxt){
   if(!checkCount(t,l)) return `<p class="muted">No check questions in this lesson.</p><div class="row"><button class="btn" data-act="lesson-done">Mark as done</button></div>`;
@@ -1262,7 +1290,7 @@ function renderManage(t){
   let h = `<section class="card stack"><h2 style="font-size:1.2rem">Test details</h2>
     <div class="grid2"><label class="f">Test name<input type="text" id="ed-name-${tid}" value="${esc(t.name)}"></label><label class="f">Test date<input type="date" id="ed-date-${tid}" value="${esc(t.date)}"></label></div>
     <div class="grid2"><label class="f">Mock test: multiple-choice questions<input type="number" min="0" max="200" id="ed-fm-${tid}" value="${t.format.mcq}"></label><label class="f">Mock test: short-answer questions<input type="number" min="0" max="20" id="ed-fs-${tid}" value="${t.format.sa}"></label></div>
-    <div class="grid2"><label class="f">Lesson check: questions per lesson <span class="hint">How many questions each lesson's check asks (1 to 20). Lessons with fewer of their own are topped up from the same topic's practice questions.</span><input type="number" min="1" max="20" id="ed-fc-${tid}" value="${checkN(t)}"></label></div>
+    <div class="grid2"><label class="f">Lesson check: questions per lesson <span class="hint">How many questions each lesson's check asks (1 to 20). Lessons with fewer of their own are topped up with practice questions about that lesson, so a lesson may ask fewer if there aren't enough.</span><input type="number" min="1" max="20" id="ed-fc-${tid}" value="${checkN(t)}"></label></div>
     <div><button class="btn" data-act="save-details">Save details</button></div></section>`;
   h += `<section class="card stack"><div><h2 style="font-size:1.2rem">Topics</h2><p class="muted small" style="margin-top:4px">Topics group lessons and questions, and drive the readiness bars.</p></div>
     <div class="stack" style="gap:8px">${t.topics.map((tp,i)=>`<div class="row" style="flex-wrap:nowrap"><span class="tag" style="--tc:${COLORS[i%COLORS.length]}">${i+1}</span><input type="text" id="tp-${esc(tp.id)}" value="${esc(tp.name)}" aria-label="Topic ${i+1} name"><button class="btn quiet sm" data-act="del-topic" data-id="${esc(tp.id)}" aria-label="Remove topic">Remove</button></div>`).join('')}</div>
