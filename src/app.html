@@ -219,6 +219,12 @@ button{cursor:pointer}
 .opt.no{border-color:var(--bad);background:var(--bad-bg)} .opt.no .k{background:var(--bad);border-color:var(--bad);color:#fff}
 .opt:disabled{cursor:default}
 .note{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 9px 9px 0}
+.whylist{margin-top:12px}
+.whylist ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.whylist li{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.whylist li.mine{border-color:color-mix(in srgb,var(--bad) 45%,var(--line));background:color-mix(in srgb,var(--bad-bg) 55%,var(--surface))}
+.whylist li .k{flex:none;width:24px;height:24px;border-radius:6px;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.8rem;font-weight:700;color:var(--muted)}
+.whylist li .small{color:var(--muted);margin-top:2px}
 .verdict{font-weight:700}.verdict.ok{color:var(--good)}.verdict.no{color:var(--bad)}
 .bigscore{font-family:var(--display);font-size:3rem;font-weight:800;line-height:1}
 .miss{border-top:1px solid var(--line);padding:14px 0}
@@ -719,7 +725,7 @@ function checkPool(t,l){ const own=l.check||[], n=checkN(t);
   if(own.length>=n) return own.length>n ? shuffle(own).slice(0,n) : own;
   return own.concat(shuffle(lessonExtras(t,l)).slice(0,n-own.length)); }
 const checkCount = (t,l) => Math.min(checkN(t), (l.check||[]).length + lessonExtras(t,l).length);
-function startCk(t,l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:checkPool(t,l).map(q=>({q:q.q,e:q.e,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a})))}))}; }
+function startCk(t,l){ ui.ck = {lid:l.id, i:0, picked:null, score:0, done:false, qs:checkPool(t,l).map(q=>({q:q.q,e:q.e,src:q,opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a,i})))}))}; }
 function renderCheck(t,l,c,nxt){
   if(!checkCount(t,l)) return `<p class="muted">No check questions in this lesson.</p><div class="row"><button class="btn" data-act="lesson-done">Mark as done</button></div>`;
   if(!ui.ck || ui.ck.lid!==l.id) startCk(t,l);
@@ -727,11 +733,11 @@ function renderCheck(t,l,c,nxt){
   if(ck.done){ const n=ck.qs.length;
     return `<div class="card stack"><div class="label">Check result</div><div class="bigscore num" style="color:${c}">${ck.score}/${n}</div><p>${ck.score===n?'Full marks. This lesson is done.':'Lesson marked done. Review what you missed, then retry for a better score.'}</p>
       <div class="row">${nxt?`<button class="btn" data-lesson="${esc(nxt.id)}">Next lesson: ${esc(nxt.title)}</button>`:'<button class="btn" data-act="lessons-back">Back to lessons</button>'}<button class="btn ghost" data-act="ck-retry">Retry check</button><button class="btn ghost" data-ltab="learn">Review notes</button></div></div>`; }
-  const q=ck.qs[ck.i], ans=ck.picked!==null;
+  const q=ck.qs[ck.i], ans=ck.picked!==null; fetchWhy(t.id, q.src); if(ck.qs[ck.i+1]) fetchWhy(t.id, ck.qs[ck.i+1].src);
   const opts=q.opts.map((o,i)=>{ let cls='opt'; if(ans){ if(o.ok) cls+=' ok'; else if(i===ck.picked) cls+=' no'; } return `<button class="${cls}" data-ckopt="${i}" ${ans?'disabled':''}><span class="k">${LET[i]}</span><span>${esc(o.t)}</span></button>`; }).join('');
   const good = ans && q.opts[ck.picked].ok;
   return `<div class="card"><div class="label">Question ${ck.i+1} of ${ck.qs.length}</div><div class="qtext">${esc(q.q)}</div><div class="opts">${opts}</div>
-    ${ans?`<div class="note" style="margin-top:14px"><span class="verdict ${good?'ok':'no'}">${good?'Correct.':'Not quite.'}</span> ${esc(q.e||'')}</div>`:''}
+    ${ans?`<div style="margin-top:14px">${whyBlock(t.id, q, ck.picked)}</div>`:''}
     <div class="row" style="margin-top:16px"><button class="btn" data-act="ck-next" ${ans?'':'disabled'}>${ck.i===ck.qs.length-1?'See result':'Next question'}</button></div></div>`;
 }
 
@@ -800,8 +806,8 @@ ${digest ? (notesOnly
   : `The student has no notes for this test yet. Use accurate, standard textbook knowledge for this subject.`}
 Reply with only one JSON object of this shape:
 {"topic":"...","missing":"",
- "lessons":[{"title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
- "mcq":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was"}],
+ "lessons":[{"title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason","w":["why this option is wrong","","...","..."]}]}],
+ "mcq":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was","w":["why this option is wrong","","...","..."]}],
  "sa":[{"q":"...","model":"model answer","pts":["a key point a marker looks for"]}],
  "traps":[{"a":"term or idea","b":"what it is easily confused with","tip":"how to tell them apart"}]}
 Rules:
@@ -812,6 +818,7 @@ Rules:
 - Exactly ${sz.sa} short-answer question${sz.sa>1?'s':''}: explain, compare or apply to a scenario. Model answers 4 to 8 sentences with 3 to 5 key points.
 - 2 to 5 "traps" relevant to what they asked.
 - "topic": ${names.length?`one of these existing names if it fits: ${JSON.stringify(names)}; otherwise a short new name (2 to 6 words).`:'a short topic name (2 to 6 words).'}
+- For every multiple-choice and check question, "w" has one entry per option in the same order: for each wrong option, one short sentence (under 25 words) on why it is wrong, such as what it actually describes or when it would be right; "" for the correct option.
 - Plain text only: no markdown, no HTML.
 ${seen.length?`\nQUESTIONS THEY ALREADY HAVE:\n${seen.map(q=>'- '+q).join('\n')}\n`:''}${digest?`\nSTUDENT'S NOTES:\n"""\n${digest}\n"""`:''}`;
 }
@@ -828,7 +835,7 @@ async function runFocus(t){
     const withTopic = arr => (Array.isArray(arr)?arr:[]).map(x=>Object.assign({topic:tp}, x&&typeof x==='object'?x:{}, {topic:tp}));
     const fixMcq = q => { if(!q||typeof q!=='object') return q; const o=q.o||q.options||q.choices; let a=q.a!==undefined?q.a:(q.answer!==undefined?q.answer:q.correct);
       if(typeof a==='string' && Array.isArray(o)){ const L='ABCDEF'.indexOf(a.trim().toUpperCase()); a = a.trim().length===1&&L>=0 ? L : o.findIndex(x=>String(x).trim()===a.trim()); }
-      return Object.assign({}, q, {q:q.q||q.question, o, a, e:q.e||q.explanation||''}); };
+      return Object.assign({}, q, {q:q.q||q.question, o, a, e:q.e||q.explanation||'', w:q.w||q.why||q.reasons}); };
     const {out, topics} = clean({lessons:withTopic(r.lessons), mcq:withTopic((Array.isArray(r.mcq)?r.mcq:[]).map(fixMcq)), sa:withTopic(r.sa), traps:r.traps||[]}, t1);
     if(!out.lessons.length && !out.mcq.length && !out.sa.length){ j.error = r.missing ? 'Your notes don\'t cover this: '+String(r.missing)+' Turn on "Also use general knowledge" or add materials that cover it.' : 'Claude didn\'t return anything for that. Try wording it differently.'; }
     else {
@@ -886,7 +893,39 @@ function renderDeck(t){
   return `<div class="row between"><button class="btn quiet sm" data-act="deck-exit">← End deck</button>${topicTag(t,cd.topic)}</div>` + flipCard(cd, `Card ${d.i+1} of ${d.order.length}`, topicOf(t,cd.topic).c, d.flipped);
 }
 
-function mcqItem(q){ return {type:'mcq', id:q.id, topic:q.topic, q:q.q, e:q.e, opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a}))), pick:null}; }
+
+/* ---- Why each option is right or wrong ---- */
+function hashStr(x){ let h=5381; for(let i=0;i<x.length;i++) h=((h<<5)+h+x.charCodeAt(i))|0; return (h>>>0).toString(36); }
+const whyKey = (tid,q) => 'w_'+tid+'_'+(q.id||hashStr(q.q+'|'+(q.o||[]).join('|')));
+function optWhy(tid,q){ if(!q) return null; if(Array.isArray(q.w) && q.w.length===q.o.length && q.w.some(Boolean)) return {why:'', w:q.w};
+  const d=docs[whyKey(tid,q)]; return d && Array.isArray(d.w) && d.w.length===q.o.length ? d : null; }
+const whyBusy = {};
+function whyPrompt(q){ return `A student is revising with this multiple-choice question.
+Question: ${q.q}
+${q.o.map((x,i)=>LET[i]+'. '+x).join('\n')}
+Correct answer: ${LET[q.a]}. ${q.o[q.a]}
+${q.e?'Given explanation: '+q.e+'\n':''}Reply with only one JSON object: {"why":"one or two sentences on why the correct answer is right","w":[${q.o.map(()=>'"..."').join(',')}]}
+"w" has one entry per option, in the order above: for each wrong option, one short sentence (under 25 words) on why it is wrong, such as what it actually describes or when it would be right; "" for the correct option. Keep the question's own terms. Plain text only.`; }
+async function fetchWhy(tid,q){
+  if(!q || !sampleFn || optWhy(tid,q)) return; const k=whyKey(tid,q); if(whyBusy[k]) return; whyBusy[k]='run';
+  try{ const r=await sampleFn.json(whyPrompt(q), {cache:false});
+    if(r && Array.isArray(r.w) && r.w.length===q.o.length){ put(k,{why:String(r.why||''), w:r.w.map(x=>String(x||'')), at:Date.now()}); delete whyBusy[k]; }
+    else whyBusy[k]='fail';
+  }catch(e){ whyBusy[k]='fail'; if(e&&(e.code==='not_granted'||e.code==='sampling_disabled')) sampleFn=null; }
+  tick();
+}
+function whyBlock(tid, it, pick){
+  const q=it.src, d=optWhy(tid,q), k=q&&whyKey(tid,q), good=it.opts[pick].ok, right=it.opts.find(o=>o.ok);
+  const sum = it.e || (d&&d.why) || '';
+  let h = `<div class="note why"><span class="verdict ${good?'ok':'no'}">${good?'Correct.':'Not quite.'}</span> ${good?'':`The answer is <b>${esc(right.t)}</b>. `}${esc(sum)}</div>`;
+  const others = it.opts.map((o,j)=>({o,j})).filter(x=>!x.o.ok).sort((a,b)=>(b.j===pick)-(a.j===pick));
+  if(d) h += `<div class="whylist"><div class="label">Why the other options are wrong</div><ul>${others.map(({o,j})=>`<li class="${j===pick?'mine':''}"><span class="k">${LET[j]}</span><div><b>${esc(o.t)}</b>${j===pick?' <span class="tag" style="--tc:var(--bad)">Your answer</span>':''}<div class="small">${esc(d.w[o.i]||'Not what the question describes.')}</div></div></li>`).join('')}</ul></div>`;
+  else if(q && whyBusy[k]==='run') h += `<div class="whylist muted small"><span class="spin"></span>Explaining the other options…</div>`;
+  else if(q && whyBusy[k]==='fail' && sampleFn) h += `<div class="whylist small"><button class="btn quiet sm" data-act="why-retry">Explain the other options</button></div>`;
+  return h;
+}
+
+function mcqItem(q){ return {type:'mcq', id:q.id, topic:q.topic, q:q.q, e:q.e, src:q, opts:shuffle(q.o.map((x,i)=>({t:x,ok:i===q.a,i}))), pick:null}; }
 function saItem(s){ return {type:'sa', id:s.id, topic:s.topic, q:s.q, model:s.model, pts:s.pts||[], text:'', shown:false, ticks:(s.pts||[]).map(()=>false)}; }
 function startSess(kind, label, items, feedback){ if(!items.length) return; ui.sess={kind, label, items, i:0, feedback, done:false}; render(true); window.scrollTo(0,0); }
 function mockPick(t){
@@ -904,7 +943,8 @@ function renderItem(t){
     const answered=it.pick!==null, reveal=answered&&s.feedback;
     const opts=it.opts.map((o,i)=>{ let cls='opt'; if(reveal){ if(o.ok) cls+=' ok'; else if(i===it.pick) cls+=' no'; } else if(answered&&i===it.pick) cls+=' sel';
       return `<button class="${cls}" data-opt="${i}" ${reveal?'disabled':''}><span class="k">${LET[i]}</span><span>${esc(o.t)}</span></button>`; }).join('');
-    let foot = reveal? `<div class="note" style="margin-top:16px"><span class="verdict ${it.opts[it.pick].ok?'ok':'no'}">${it.opts[it.pick].ok?'Correct.':'Not quite.'}</span> ${esc(it.e||'')}</div>`:'';
+    if(s.feedback){ fetchWhy(t.id, it.src); const nx=s.items[s.i+1]; if(nx&&nx.type==='mcq') fetchWhy(t.id, nx.src); }
+    let foot = reveal? `<div style="margin-top:16px">${whyBlock(t.id, it, it.pick)}</div>`:'';
     foot += `<div class="row" style="margin-top:18px"><button class="btn" data-act="next" ${answered?'':'disabled'}>${last?'Finish':'Next'}</button>${quit}<span class="muted small">Keys 1–${it.opts.length} answer, Enter goes on</span></div>`;
     return `<div class="card">${head}<div class="qtext">${esc(it.q)}</div><div class="opts">${opts}</div>${foot}</div>`;
   }
@@ -926,7 +966,7 @@ function renderResults(t){
     h += `<div class="card"><div class="label" style="margin-bottom:12px">By topic</div><div class="bars">${Object.keys(by).map(k=>{ const tp=topicOf(t,k), v=pct(by[k].r,by[k].n);
       return `<div class="bar" style="--tc:${v<60?'var(--bad)':tp.c}"><span class="nm">${esc(tp.name)}</span><span class="track"><i style="width:${v}%"></i></span><span class="num small">${by[k].r}/${by[k].n}</span></div>`; }).join('')}</div></div>`; }
   const wrong=mcqs.filter(i=>!(i.pick!==null&&i.opts[i.pick].ok));
-  if(wrong.length) h += `<div class="card"><div class="label" style="margin-bottom:6px">Questions to revisit (${wrong.length})</div>${wrong.map(i=>`<div class="miss">${topicTag(t,i.topic)}<div style="font-weight:700;margin:6px 0">${esc(i.q)}</div>${i.pick!==null?`<div style="color:var(--bad)">Your answer: ${esc(i.opts[i.pick].t)}</div>`:'<div class="muted">Not answered</div>'}<div style="color:var(--good)">Correct: ${esc(i.opts.find(o=>o.ok).t)}</div><div class="muted small" style="margin-top:4px">${esc(i.e||'')}</div></div>`).join('')}</div>`;
+  if(wrong.length) h += `<div class="card"><div class="label" style="margin-bottom:6px">Questions to revisit (${wrong.length})</div>${wrong.map(i=>`<div class="miss">${topicTag(t,i.topic)}<div style="font-weight:700;margin:6px 0">${esc(i.q)}</div>${i.pick!==null?`<div style="color:var(--bad)">Your answer: ${esc(i.opts[i.pick].t)}</div>${(d=>d&&d.w[i.opts[i.pick].i]?`<div class="muted small">Why it's wrong: ${esc(d.w[i.opts[i.pick].i])}</div>`:'')(optWhy(t.id,i.src))}`:'<div class="muted">Not answered</div>'}<div style="color:var(--good)">Correct: ${esc(i.opts.find(o=>o.ok).t)}</div><div class="muted small" style="margin-top:4px">${esc(i.e||'')}</div></div>`).join('')}</div>`;
   else if(mcqs.length) h += `<div class="card"><b>No misses.</b> Every multiple-choice answer was correct.</div>`;
   return `<div class="stack">${h}<div class="row"><button class="btn" data-act="sess-close">Done</button>${wrong.length?'<button class="btn ghost" data-act="retry-wrong">Retry the misses</button>':''}</div></div>`;
 }
@@ -1001,14 +1041,15 @@ function clean(data, t){ // normalise imported/generated content; returns {data,
     let x=topics.find(tp=>tp.name.toLowerCase()===n.toLowerCase()); if(!x){ x={id:rid('tp'),name:n}; topics.push(x); } return x.id; };
   const fixedTopic = data.__topic;
   const T = o => fixedTopic || byName(o.topic);
+  const okW = q => Array.isArray(q.w) && q.w.length===q.o.length ? {w:q.w.map(x=>String(x||''))} : {};
   const okMcq = q => q && q.q && Array.isArray(q.o) && q.o.length>=2 && Number.isInteger(+q.a) && +q.a>=0 && +q.a<q.o.length;
   const out = {
     lessons:(data.lessons||[]).filter(l=>l&&l.title).map(l=>({id:rid('l'), topic:T(l), title:String(l.title), blurb:String(l.blurb||''),
       points:(l.points||[]).filter(p=>p&&(p.h||p.b)).map(p=>({h:String(p.h||''),b:String(p.b||'')})),
       vis:(l.vis||[]).filter(v=>v&&Array.isArray(v.items)).map(v=>({title:String(v.title||'Key parts'), items:v.items.map(it=>Array.isArray(it)?[String(it[0]||''),String(it[1]||'')]:(it&&typeof it==='object')?[String(it.label||''),String(it.desc||it.description||'')]:[String(it||''),'']).filter(it=>it[0])})).filter(v=>v.items.length>1),
       cards:(l.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),f:String(c.f),b:String(c.b)})),
-      check:(l.check||[]).filter(okMcq).map(q=>({q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')}))})),
-    mcq:(data.mcq||[]).filter(okMcq).map(q=>({id:rid('q'),topic:T(q),q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')})),
+      check:(l.check||[]).filter(okMcq).map(q=>Object.assign({q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')}, okW(q)))})),
+    mcq:(data.mcq||[]).filter(okMcq).map(q=>Object.assign({id:rid('q'),topic:T(q),q:String(q.q),o:q.o.map(String),a:+q.a,e:String(q.e||'')}, okW(q))),
     sa:(data.sa||[]).filter(s=>s&&s.q).map(s=>({id:rid('s'),topic:T(s),q:String(s.q),model:String(s.model||''),pts:(s.pts||[]).map(String)})),
     cards:(data.cards||[]).map(c=>Array.isArray(c)?{f:c[0],b:c[1]}:c).filter(c=>c&&c.f&&c.b).map(c=>({id:rid('c'),topic:T(c),f:String(c.f),b:String(c.b)})),
     traps:(data.traps||[]).filter(x=>x&&x.a&&x.b).map(x=>({id:rid('x'),a:String(x.a),b:String(x.b),tip:String(x.tip||'')}))
@@ -1115,7 +1156,7 @@ function topicRule(names){ return names.length
 function notesPrompt(j, names, nCheck){ return `You are an expert tutor turning a university student's study material into revision notes for an upcoming test. Source: "${j.name}".
 Use ONLY facts from the material below. Do not add outside knowledge. Keep the material's own terms, lists, names, numbers, dates, frameworks and models exactly as given.
 Reply with only one JSON object of this shape:
-{"lessons":[{"topic":"...","title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason"}]}],
+{"lessons":[{"topic":"...","title":"...","blurb":"one-line summary","points":[{"h":"short heading","b":"explanation"}],"vis":[{"title":"...","items":[["part name","one-sentence description"]]}],"cards":[["front","back"]],"check":[{"q":"...","o":["...","...","...","..."],"a":0,"e":"one-line reason","w":["why this option is wrong","","...","..."]}]}],
  "traps":[{"a":"term or idea","b":"what it is easily confused with","tip":"how to tell them apart"}]}
 Rules:
 - Split the material into lessons of one main idea each, in the material's order: usually 3 to 6 lessons, up to 8 for long material.
@@ -1125,6 +1166,7 @@ Rules:
 - Exactly ${nCheck||5} check questions per lesson. "a" is the 0-based index of the correct option; vary its position; distractors are plausible terms from the material.
 - "traps": 3 to 8 pairs of things in this material that students are likely to mix up in a multiple-choice test.
 - Topic: ${topicRule(names)}
+- For every multiple-choice and check question, "w" has one entry per option in the same order: for each wrong option, one short sentence (under 25 words) on why it is wrong, such as what it actually describes or when it would be right; "" for the correct option.
 - Plain text only: no markdown, no HTML.
 
 MATERIAL:
@@ -1134,13 +1176,14 @@ ${j.text.slice(0,150000)}
 function questionsPrompt(j, names, sz){ return `You are writing practice questions for a university test from a student's study material. Source: "${j.name}".
 Use ONLY facts from the material below. Do not add outside knowledge.
 Reply with only one JSON object of this shape:
-{"mcq":[{"topic":"...","q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was"}],
+{"mcq":[{"topic":"...","q":"...","o":["...","...","...","..."],"a":0,"e":"why the answer is right and what the trap was","w":["why this option is wrong","","...","..."]}],
  "sa":[{"topic":"...","q":"...","model":"model answer","pts":["a key point a marker looks for"]}]}
 Rules:
 - Exactly ${sz.mcq} multiple-choice questions covering the whole material: recall (definitions, lists, who/which, order of steps) and application (short scenarios such as "A company ... This is an example of:"). Include one or two "Which is NOT ..." questions.
 - 4 options each with exactly one correct. Distractors are real terms from the material that students confuse. "a" is the 0-based index of the correct option; vary its position.
 - Exactly ${sz.sa} short-answer questions: mix "explain" or "compare" questions with scenario questions that ask the student to apply the concepts. Model answers are 4 to 8 sentences; give 3 to 5 key points each.
 - For "topic", use ${names.length? 'one of these names: '+JSON.stringify(names) : 'a short topic name for the material (2 to 6 words)'}.
+- For every multiple-choice and check question, "w" has one entry per option in the same order: for each wrong option, one short sentence (under 25 words) on why it is wrong, such as what it actually describes or when it would be right; "" for the correct option.
 - Plain text only: no markdown, no HTML.
 
 MATERIAL:
@@ -1352,6 +1395,7 @@ function act(a, el, t){
     case 'import': { let data; try{ data=JSON.parse(val('imp-'+t.id)); }catch(err){ toast('That is not valid JSON'); return; }
       if(Array.isArray(data)) data={mcq:data}; const n=ingest(t,data,true); if(n){ const el2=document.getElementById('imp-'+t.id); if(el2) el2.value=''; render(); toast('Imported '+n+' items'); } else toast('Nothing in that JSON matched the format'); break; }
     case 'copy-shape': { try{ navigator.clipboard.writeText(IMPORT_SHAPE).then(()=>toast('Format copied'),()=>toast('Select the text to copy it')); }catch(err){ toast('Select the text to copy it'); } break; }
+    case 'why-retry': { const it = ui.sess&&!ui.sess.done ? ui.sess.items[ui.sess.i] : ui.ck&&ui.ck.qs[ui.ck.i]; if(it&&it.src){ delete whyBusy[whyKey(t.id,it.src)]; fetchWhy(t.id,it.src); render(); } break; }
     case 'fx-go': runFocus(t); break;
     case 'fx-stop': { const j=fjob(t.id); if(j.ctl) j.ctl.abort(); break; }
     case 'fx-size': fjob(t.id).size=el.dataset.v; render(); break;
@@ -1373,7 +1417,7 @@ function act(a, el, t){
 }
 function ingestOne(t, data, topicId){ if(topicId) data.__topic=topicId; const n=ingest(t,data); if(n){ render(true); toast('Added'); } }
 function delTest(tid){ if(tid===BUILTIN_TEST_ID) put('t_'+tid,{deleted:true}); else put('t_'+tid,null); put('p_'+tid,null);
-  Object.keys(docs).forEach(k=>{ if(k.startsWith('c_'+tid+'_')) put(k,null); }); }
+  Object.keys(docs).forEach(k=>{ if(k.startsWith('c_'+tid+'_')||k.startsWith('w_'+tid+'_')) put(k,null); }); }
 document.addEventListener('change', e=>{ if(e.target.id==='bfile' && ui.page==='test'){ const fs=[...e.target.files]; e.target.value=''; addFiles(ui.tid, fs); } });
 const dropOf = e => e.target && e.target.closest ? e.target.closest('.drop') : null;
 document.addEventListener('dragover', e=>{ const d=dropOf(e); if(d){ e.preventDefault(); d.classList.add('over'); } });
